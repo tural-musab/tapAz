@@ -79,8 +79,8 @@ const UnauthorizedPanel = ({ message }: { message?: string }) => (
   </section>
 );
 
-export default function AdminPage({ searchParams }: AdminPageProps) {
-  const auth = validateAdminAccess(searchParams);
+export default async function AdminPage({ searchParams }: AdminPageProps) {
+  const auth = await validateAdminAccess(searchParams);
 
   if (!auth.allowed) {
     return (

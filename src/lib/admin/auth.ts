@@ -28,7 +28,7 @@ const normalizeAuthHeader = (value?: string | null) => {
   return value.trim();
 };
 
-export const validateAdminAccess = (searchParams: AdminSearchParams): AdminAuthResult => {
+export const validateAdminAccess = async (searchParams: AdminSearchParams): Promise<AdminAuthResult> => {
   const requiredToken = process.env.ADMIN_DASHBOARD_TOKEN;
 
   if (!requiredToken) {
@@ -39,9 +39,10 @@ export const validateAdminAccess = (searchParams: AdminSearchParams): AdminAuthR
     };
   }
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
+  const headerStore = await headers();
   const cookieToken = cookieStore.get(ADMIN_COOKIE_NAME)?.value;
-  const headerToken = headers().get('x-admin-token') || normalizeAuthHeader(headers().get('authorization'));
+  const headerToken = headerStore.get('x-admin-token') || normalizeAuthHeader(headerStore.get('authorization'));
   const queryTokenParam = searchParams?.token;
   const queryToken = Array.isArray(queryTokenParam) ? queryTokenParam[0] : queryTokenParam;
 
