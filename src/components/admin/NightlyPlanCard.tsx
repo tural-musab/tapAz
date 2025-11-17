@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Category } from '@/lib/types';
 import type { AdminNightlyPlanState } from '@/lib/admin/types';
+import { formatDateTime } from '@/lib/formatters';
 
 interface NightlyPlanCardProps {
   categories: Category[];
@@ -147,7 +148,7 @@ export const NightlyPlanCard = ({ categories, plan: initialPlan, authToken, sour
           <h2 className="text-xl font-semibold text-white">Gecə planını idarə et</h2>
         </div>
         <div className="text-right text-sm text-slate-400">
-          <p>Son yeniləmə: {plan.lastUpdatedAt ? new Date(plan.lastUpdatedAt).toLocaleString('az-AZ') : 'naməlum'}</p>
+          <p>Son yeniləmə: {plan.lastUpdatedAt ? formatDateTime(plan.lastUpdatedAt) : 'naməlum'}</p>
           <p className="text-xs text-slate-500">Növbəti run təxmini: {upcomingRun}</p>
           <span className={`mt-2 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] ${badgeTone[source]}`}>
             {source === 'supabase' ? 'Supabase saxlanması' : 'Yerəl fayl rejimi'}
