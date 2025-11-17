@@ -6,12 +6,22 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "collect": "tsx scripts/tapazCollector.ts",
+    "collect:playwright": "tsx scripts/tapazCollector.playwright.ts",
+    "data:sync": "tsx scripts/snapshotToDataset.ts"
   },
   "dependencies": {
+    "cheerio": "^1.1.2",
+    "clsx": "^2.1.1",
+    "dotenv": "^17.2.3",
+    "lucide-react": "^0.554.0",
     "next": "16.0.3",
+    "p-limit": "^7.2.0",
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "zod": "^4.1.12",
+    "dotenv": "^16.4.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -20,7 +30,9 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.0.3",
+    "playwright": "^1.48.2",
     "tailwindcss": "^4",
+    "tsx": "^4.20.6",
     "typescript": "^5"
   }
 }

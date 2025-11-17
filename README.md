@@ -1,36 +1,38 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## Tap.az Analytics Web Uygulaması
 
-## Getting Started
+Bu dizin, Tap.az elanlarından toplanan məlumatları vizuallaşdıran Next.js tətbiqini ehtiva edir. Layihənin ümumi vizyonu, data strategiyası və roadmap-i üçün repozitoriyanın kökündəki `README.md` sənədinə baxın.
 
-First, run the development server:
-
+### Çalıştırma
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev        # http://localhost:3000
+npm run lint
+npm run collect    # scripts/tapazCollector.ts (cheerio)
+
+# Playwright əsaslı scraper
+# 1) Chromium quraşdırılması üçün (diskdə ~130 MB boş yer tələb edir):
+#    npx playwright install chromium
+# 2) Konfiqurasiyanı scrape.env.example əsasında .env faylına köçürün
+npm run collect:playwright
+
+# Snapshot nəticəsini UI datasına yazmaq:
+npm run data:sync
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Qovluqlar
+- `src/app` – App Router, API route-lar və səhifələr
+- `src/components` – dashboard və UI komponentləri
+- `src/data` – demo dataset
+- `src/lib` – filtr/sort loqikası və util-lər
+- `scripts/tapazCollector.ts` – Tap.az-dan məlumat toplamaq üçün legacy skript
+- `scripts/tapazCollector.playwright.ts` – Cloudflare bloklarını brauzer kimi keçərək real elanları yığan skript
+- `scripts/snapshotToDataset.ts` – Son snapshot faylını `src/data/listings.json` formatına çevirən skript
+- `scrape.env.example` – Playwright toplayıcısı üçün nümunə mühit dəyişənləri
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Ətraflı sənədlər
+Kök `README.md` sənədində:
+1. Məlumat toplama planı və hüquqi qeydlər
+2. Yol xəritəsi
+3. Arxitektura diaqramı və risklər
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Bu dosya yalnız tətbiqin tez istismara alınması üçün minimal istiqamətləndirmə verir.

@@ -1,0 +1,74 @@
+[
+  {
+    "id": "electronics",
+    "name": "Elektronika",
+    "note": "Telefonlar, kompüterlər və digər cihazlar",
+    "subcategories": [
+      { "id": "telefonlar", "name": "Telefonlar" },
+      { "id": "plansetler", "name": "Planşetlər" },
+      { "id": "noutbuklar", "name": "Noutbuklar" },
+      { "id": "komputerler", "name": "Kompüterlər" },
+      { "id": "komputer-aksesuarlari", "name": "Kompüter aksesuarları" },
+      { "id": "komputer-avadanliqi", "name": "Kompüter avadanlığı" },
+      { "id": "smart-saat-ve-qolbaqlar", "name": "Smart saat və qolbaqlar" },
+      { "id": "audio-video", "name": "Audio və video" },
+      { "id": "televizor-ve-aksesuarlar", "name": "Televizor və aksesuarlar" },
+      { "id": "fotoaparatlar-ve-linzalar", "name": "Fotoaparatlar və linzalar" },
+      { "id": "oyunlar-ve-programlar", "name": "Oyunlar və proqramlar" },
+      { "id": "nomreler-ve-sim-kartlar", "name": "Nömrələr və SIM kartlar" },
+      { "id": "ofis-avadanliqi", "name": "Ofis avadanlığı" },
+      { "id": "digər-elektronika", "name": "Digər elektronika" }
+    ]
+  },
+  {
+    "id": "home_garden",
+    "name": "Ev və bağ üçün",
+    "note": "Mebel, texnika və məişət malları",
+    "subcategories": [
+      { "id": "kitchen", "name": "Mətbəx texnikası" },
+      { "id": "furniture", "name": "Mebel" },
+      { "id": "decor", "name": "Dekor və interyer" }
+    ]
+  },
+  {
+    "id": "vehicles",
+    "name": "Nəqliyyat",
+    "note": "Avtomobil və ehtiyat hissələri",
+    "subcategories": [
+      { "id": "cars", "name": "Avtomobillər" },
+      { "id": "parts", "name": "Ehtiyat hissələri" },
+      { "id": "moto", "name": "Motosiklet və mopedlər" }
+    ]
+  },
+  {
+    "id": "personal_items",
+    "name": "Şəxsi əşyalar",
+    "note": "Geyim, aksesuar, uşaq aləmi",
+    "subcategories": [
+      { "id": "fashion", "name": "Geyim və aksesuarlar" },
+      { "id": "beauty", "name": "Gözəllik və sağlamlıq" },
+      { "id": "kids", "name": "Uşaq aləmi" }
+    ]
+  },
+  {
+    "id": "services_business",
+    "name": "Xidmətlər və biznes",
+    "note": "Peşəkar və fərdi xidmətlər",
+    "subcategories": [
+      { "id": "repair", "name": "Təmir və tikinti" },
+      { "id": "education", "name": "Təlim və kurslar" },
+      { "id": "it_support", "name": "IT və texniki servis" }
+    ]
+  },
+  {
+    "id": "jobs",
+    "name": "İş elanları",
+    "note": "Müştərinin tələbi ilə istisna edilir",
+    "subcategories": [
+      { "id": "it_jobs", "name": "İT və telekom" },
+      { "id": "marketing_jobs", "name": "Marketinq və PR" },
+      { "id": "finance_jobs", "name": "Maliyyə" }
+    ]
+  }
+]
+
