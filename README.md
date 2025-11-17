@@ -34,5 +34,7 @@ Kök `README.md` sənədində:
 1. Məlumat toplama planı və hüquqi qeydlər
 2. Yol xəritəsi
 3. Arxitektura diaqramı və risklər
+4. Admin panel roadmap-i (`docs/admin-dashboard-plan.md`)
+5. Supabase gecə planı və cron scaffoldu (`docs/nightly-plan.md`)
 
 Bu dosya yalnız tətbiqin tez istismara alınması üçün minimal istiqamətləndirmə verir.

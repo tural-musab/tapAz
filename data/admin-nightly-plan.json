@@ -1,0 +1,8 @@
+{
+  "cronExpression": "0 2 * * *",
+  "timezone": "Asia/Baku",
+  "includeCategoryIds": [],
+  "excludeCategoryIds": [],
+  "lastUpdatedAt": "2025-11-17T00:00:00.000Z",
+  "updatedBy": "bootstrap"
+}

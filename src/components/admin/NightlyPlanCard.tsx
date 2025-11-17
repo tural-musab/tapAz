@@ -1,53 +1,139 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Category } from '@/lib/types';
 import type { AdminNightlyPlanState } from '@/lib/admin/types';
 
 interface NightlyPlanCardProps {
   categories: Category[];
   plan: AdminNightlyPlanState;
+  authToken?: string;
+  source?: 'supabase' | 'file';
 }
 
 const tzOptions = ['Asia/Baku', 'Europe/Istanbul', 'UTC'];
-const TODAY_REFERENCE = Date.now();
 
-export const NightlyPlanCard = ({ categories, plan }: NightlyPlanCardProps) => {
-  const [cronExpression, setCronExpression] = useState(plan.cronExpression);
-  const [timezone, setTimezone] = useState(plan.timezone);
-  const [excludedCategories, setExcludedCategories] = useState<string[]>(() => {
-    const includeSet = new Set(plan.includeCategoryIds);
-    const diff = categories.filter((category) => !includeSet.has(category.id)).map((category) => category.id);
-    return Array.from(new Set([...plan.excludeCategoryIds, ...diff]));
-  });
-  const [savingState, setSavingState] = useState<'idle' | 'saving' | 'saved'>('idle');
+const badgeTone = {
+  supabase: 'text-emerald-300 bg-emerald-500/10 border border-emerald-500/30',
+  file: 'text-amber-200 bg-amber-500/10 border border-amber-500/40'
+};
+
+export const NightlyPlanCard = ({ categories, plan: initialPlan, authToken, source: initialSource }: NightlyPlanCardProps) => {
+  const [plan, setPlan] = useState(initialPlan);
+  const [source, setSource] = useState<'supabase' | 'file'>(initialSource ?? 'file');
+  const [savingState, setSavingState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [saveMessage, setSaveMessage] = useState('Plan hələ serverə göndərilməyib.');
+  const [loading, setLoading] = useState(false);
 
-  const includedCount = categories.length - excludedCategories.length;
+  const buildHeaders = useCallback(
+    (options?: { json?: boolean }) => {
+      const headers = new Headers();
+      if (options?.json) {
+        headers.set('Content-Type', 'application/json');
+      }
+      if (authToken) {
+        headers.set('x-admin-token', authToken);
+      }
+      return headers;
+    },
+    [authToken]
+  );
+
+  const fetchPlan = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/admin/plan', { headers: buildHeaders() });
+      if (!response.ok) {
+        throw new Error('Plan oxunmadı');
+      }
+      const data = await response.json();
+      setPlan(data.plan ?? initialPlan);
+      setSource(data.source ?? 'file');
+    } catch (error) {
+      console.error('Plan fetch xətası', error);
+      setSaveMessage('Plan oxunmadı, lokal plan istifadə olunur.');
+    } finally {
+      setLoading(false);
+    }
+  }, [buildHeaders, initialPlan]);
+
+  useEffect(() => {
+    fetchPlan();
+  }, [fetchPlan]);
+
+  useEffect(() => {
+    setPlan(initialPlan);
+    setSource(initialSource ?? 'file');
+  }, [initialPlan, initialSource]);
+
+  const includedCount = useMemo(() => {
+    if (plan.includeCategoryIds.length > 0) {
+      return plan.includeCategoryIds.length;
+    }
+    return categories.length - plan.excludeCategoryIds.length;
+  }, [categories.length, plan.excludeCategoryIds.length, plan.includeCategoryIds.length]);
 
   const handleExclusionToggle = (categoryId: string) => {
-    setExcludedCategories((prev) => {
-      if (prev.includes(categoryId)) {
-        return prev.filter((id) => id !== categoryId);
+    setPlan((previous) => {
+      const isExcluded = previous.excludeCategoryIds.includes(categoryId);
+      if (isExcluded) {
+        return {
+          ...previous,
+          excludeCategoryIds: previous.excludeCategoryIds.filter((id) => id !== categoryId),
+          includeCategoryIds: Array.from(new Set([...previous.includeCategoryIds, categoryId]))
+        };
       }
-      return [...prev, categoryId];
+
+      return {
+        ...previous,
+        excludeCategoryIds: [...previous.excludeCategoryIds, categoryId],
+        includeCategoryIds: previous.includeCategoryIds.filter((id) => id !== categoryId)
+      };
     });
   };
 
+  const handlePlanFieldChange = (field: keyof Pick<AdminNightlyPlanState, 'cronExpression' | 'timezone'>, value: string) => {
+    setPlan((previous) => ({
+      ...previous,
+      [field]: value
+    }));
+  };
+
+  const excludedCategories = plan.excludeCategoryIds;
+
   const handleSave = async () => {
     setSavingState('saving');
-    setSaveMessage('Supabase planı yenilənir...');
+    setSaveMessage('Plan saxlanılır...');
 
-    await new Promise((resolve) => setTimeout(resolve, 1200));
+    try {
+      const response = await fetch('/api/admin/plan', {
+        method: 'POST',
+        headers: buildHeaders({ json: true }),
+        body: JSON.stringify(plan)
+      });
 
-    setSavingState('saved');
-    setSaveMessage('Mock rejim: məlumatlar `POST /api/admin/plan` endpoint-inə göndərilməyə hazırdır.');
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error ?? 'Plan yenilənmədi');
+      }
+
+      const data = await response.json();
+      const nextPlan = (data.plan ?? plan) as AdminNightlyPlanState;
+      const nextSource: 'supabase' | 'file' = data.source ?? source;
+      setPlan(nextPlan);
+      setSource(nextSource);
+      setSavingState('saved');
+      setSaveMessage(nextSource === 'supabase' ? 'Plan Supabase-də saxlandı.' : 'Plan lokal faylda saxlandı.');
+    } catch (error) {
+      setSavingState('error');
+      setSaveMessage((error as Error).message ?? 'Xəta baş verdi');
+    }
   };
 
   const upcomingRun = useMemo(() => {
     const nextDate = new Date();
     nextDate.setHours(2, 0, 0, 0);
-    if (nextDate.getTime() < TODAY_REFERENCE) {
+    if (nextDate.getTime() < Date.now()) {
       nextDate.setDate(nextDate.getDate() + 1);
     }
     return nextDate.toLocaleString('az-AZ', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' });
@@ -61,8 +147,12 @@ export const NightlyPlanCard = ({ categories, plan }: NightlyPlanCardProps) => {
           <h2 className="text-xl font-semibold text-white">Gecə planını idarə et</h2>
         </div>
         <div className="text-right text-sm text-slate-400">
-          <p>Son yeniləmə: {new Intl.DateTimeFormat('az-AZ', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(plan.lastUpdatedAt))}</p>
+          <p>Son yeniləmə: {plan.lastUpdatedAt ? new Date(plan.lastUpdatedAt).toLocaleString('az-AZ') : 'naməlum'}</p>
           <p className="text-xs text-slate-500">Növbəti run təxmini: {upcomingRun}</p>
+          <span className={`mt-2 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] ${badgeTone[source]}`}>
+            {source === 'supabase' ? 'Supabase saxlanması' : 'Yerəl fayl rejimi'}
+          </span>
+          {plan.updatedBy && <p className="mt-1 text-xs text-slate-500">Yeniləyən: {plan.updatedBy}</p>}
         </div>
       </div>
 
@@ -106,19 +196,19 @@ export const NightlyPlanCard = ({ categories, plan }: NightlyPlanCardProps) => {
           <div className="rounded-xl border border-slate-800/60 bg-slate-950/40 p-4">
             <p className="text-sm font-semibold text-white">Cron ifadəsi</p>
             <input
-              value={cronExpression}
-              onChange={(event) => setCronExpression(event.target.value)}
+              value={plan.cronExpression}
+              onChange={(event) => handlePlanFieldChange('cronExpression', event.target.value)}
               className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
               placeholder="0 2 * * *"
             />
-            <p className="mt-2 text-xs text-slate-500">GitHub Actions workflow-u üçün `CRON_SCHEDULE_TIME` ilə uyğun saxlayın.</p>
+            <p className="mt-2 text-xs text-slate-500">GitHub Actions üçün `CRON_SCHEDULE_TIME` ilə uyğun saxlayın.</p>
           </div>
 
           <div className="rounded-xl border border-slate-800/60 bg-slate-950/40 p-4">
             <p className="text-sm font-semibold text-white">Timezone</p>
             <select
-              value={timezone}
-              onChange={(event) => setTimezone(event.target.value)}
+              value={plan.timezone}
+              onChange={(event) => handlePlanFieldChange('timezone', event.target.value)}
               className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
             >
               {tzOptions.map((option) => (
@@ -143,7 +233,7 @@ export const NightlyPlanCard = ({ categories, plan }: NightlyPlanCardProps) => {
           >
             {savingState === 'saving' ? 'Yenilənir...' : 'Gecə planını saxla'}
           </button>
-          <p className="text-xs text-slate-500">{saveMessage}</p>
+          <p className="text-xs text-slate-500">{loading ? 'Plan yüklənir...' : saveMessage}</p>
         </div>
       </div>
     </section>

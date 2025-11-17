@@ -6,7 +6,8 @@ import { NightlyPlanCard } from '@/components/admin/NightlyPlanCard';
 import { ActivityTimeline } from '@/components/admin/ActivityTimeline';
 import { EXCLUDED_CATEGORY_IDS } from '@/lib/constants';
 import { validateAdminAccess } from '@/lib/admin/auth';
-import type { AdminActivityItem, AdminNightlyPlanState, AdminOverviewStats } from '@/lib/admin/types';
+import type { AdminActivityItem, AdminOverviewStats } from '@/lib/admin/types';
+import { loadNightlyPlan } from '@/lib/admin/planStore';
 import type { Category, Listing } from '@/lib/types';
 import type { AdminSearchParams } from '@/lib/admin/auth';
 
@@ -28,14 +29,6 @@ const mockOverview: AdminOverviewStats = {
     categoryCount: 2,
     pageLimit: 3
   }
-};
-
-const mockNightlyPlan: AdminNightlyPlanState = {
-  cronExpression: '0 2 * * *',
-  timezone: 'Asia/Baku',
-  includeCategoryIds: availableCategories.map((category) => category.id),
-  excludeCategoryIds: [],
-  lastUpdatedAt: new Date().toISOString()
 };
 
 const mockActivities: AdminActivityItem[] = [
@@ -92,6 +85,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     );
   }
 
+  const planPayload = await loadNightlyPlan();
+
   return (
     <div className="space-y-8">
       <div id="overview">
@@ -101,7 +96,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         <ManualCollectorForm categories={availableCategories} authToken={auth.resolvedToken} />
       </div>
       <div id="nightly">
-        <NightlyPlanCard categories={availableCategories} plan={mockNightlyPlan} />
+        <NightlyPlanCard
+          categories={availableCategories}
+          plan={planPayload.plan}
+          source={planPayload.source}
+          authToken={auth.resolvedToken}
+        />
       </div>
       <div id="activity">
         <ActivityTimeline activities={mockActivities} />
@@ -113,7 +113,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         ) : (
           <p>Token təyin edilməyib, hazırda endpoint-lər açıq şəkildə işləyir.</p>
         )}
-        <p>Admin paneli hazırda lokal job idarəçisini nümayiş etdirir; növbəti fazada Supabase planı ilə inteqrasiya ediləcək.</p>
+        <p>Gecə planı Supabase cədvəlləri (`scheduler_settings`, `category_plan`) mövcud olmadıqda avtomatik olaraq `data/admin-nightly-plan.json` faylına yazılır.</p>
       </div>
     </div>
   );

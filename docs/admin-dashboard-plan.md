@@ -50,5 +50,34 @@ Bu plan əsasında növbəti addım admin route skeletini və əsas komponentlə
 ### 7. İcra Statusu
 - [x] `/admin` route + layout + mock komponentlər – 2025-11-17
 - [x] `POST /api/admin/scrape` + status API (plan3)
-- [ ] Supabase plan CRUD + cron scaffolding (plan4)
+- [x] Supabase plan CRUD + cron scaffolding (plan4) – 2025-11-17
 - [ ] GitHub Actions → Vercel monitorinq addımları (plan5)
+
+### 8. Supabase və Cron Scaffoldu
+- `scheduler_settings` cədvəli: `id text primary key`, `cron_expression text`, `timezone text`, `updated_at timestamptz`, `updated_by text`.
+- `category_plan` cədvəli: `category_id text primary key`, `include boolean default true`, `updated_at timestamptz`.
+- Admin paneli `GET/POST /api/admin/plan` route-ları vasitəsilə bu cədvəlləri oxuyur/yazır; Supabase mövcud olmadıqda məlumat `data/admin-nightly-plan.json` faylına saxlanılır.
+- Cron scaffoldu üçün nümunə workflow (GitHub Actions):
+  ```yaml
+  on:
+    schedule:
+      - cron: '0 22 * * *' # UTC 02:00 Bakı vaxtına uyğundur
+  jobs:
+    nightly-scrape:
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v4
+        - run: npm ci
+        - name: Fetch nightly plan
+          run: |
+            PLAN=$(curl -s -H "x-admin-token: ${{ secrets.ADMIN_DASHBOARD_TOKEN }}" https://<domain>/api/admin/plan)
+            echo "PLAN=$PLAN" >> $GITHUB_ENV
+        - name: Trigger scrape job
+          run: |
+            curl -X POST \
+              -H "x-admin-token: ${{ secrets.ADMIN_DASHBOARD_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              -d "{ \"categoryUrls\": $(echo $PLAN | jq '.plan.includeCategoryIds'), \"pageLimit\": 2, \"listingLimit\": 120, \"delayMs\": 1500, \"detailDelayMs\": 2200, \"headless\": true }" \
+              https://<domain>/api/admin/scrape
+  ```
+- `VERCEL_TOKEN` gələcək mərhələdə build monitorinqi üçün istifadə olunacaq; hazırda `.env.local` daxilində saxlanılır.

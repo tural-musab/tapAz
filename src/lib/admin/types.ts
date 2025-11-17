@@ -33,6 +33,7 @@ export interface AdminNightlyPlanState {
   includeCategoryIds: string[];
   excludeCategoryIds: string[];
   lastUpdatedAt: string;
+  updatedBy?: string;
 }
 
 export interface ManualCollectorPreset {
