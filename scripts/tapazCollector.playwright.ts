@@ -3,6 +3,11 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import { chromium, type BrowserContext, type Page } from 'playwright';
 
+const PROGRESS_PREFIX = '__PROGRESS__';
+const reportProgress = (payload: Record<string, unknown>) => {
+  console.log(`${PROGRESS_PREFIX}${JSON.stringify(payload)}`);
+};
+
 interface BaseListingCard {
   tapId: string;
   title: string;
@@ -226,7 +231,11 @@ const scrapeCategory = async (context: BrowserContext, categoryUrl: string) => {
   return aggregated.slice(0, MAX_LISTINGS_PER_CATEGORY);
 };
 
-const enrichListings = async (context: BrowserContext, listings: BaseListingCard[]): Promise<ScrapedListing[]> => {
+const enrichListings = async (
+  context: BrowserContext,
+  listings: BaseListingCard[],
+  onProgress?: (processed: number, total: number, listing: BaseListingCard) => void
+): Promise<ScrapedListing[]> => {
   const page = await context.newPage();
   const enriched: ScrapedListing[] = [];
 
@@ -256,6 +265,7 @@ const enrichListings = async (context: BrowserContext, listings: BaseListingCard
       };
 
       enriched.push(record);
+      onProgress?.(enriched.length, listings.length, listing);
       await sleep(DETAIL_DELAY_MS);
     } catch (error) {
       console.warn(`⚠️  Elan ${listing.tapId} oxunmadı:`, (error as Error).message);
@@ -279,6 +289,7 @@ const writeSnapshot = async (records: ScrapedListing[]) => {
 
   await fs.writeFile(filePath, JSON.stringify(payload, null, 2), 'utf8');
   console.log(`✅  ${records.length} elan ${filePath} faylına yazıldı.`);
+  return filePath;
 };
 
 const run = async () => {
@@ -291,6 +302,13 @@ const run = async () => {
   console.log('▶️  Tap.az Playwright toplayıcısı başlayır...');
   console.log(`   Kateqoriyalar: ${CATEGORY_URLS.join(', ')}`);
   console.log(`   Səhifə limiti: ${MAX_PAGES_PER_CATEGORY}, elan limiti: ${MAX_LISTINGS_PER_CATEGORY}`);
+  reportProgress({
+    phase: 'initializing',
+    processed: 0,
+    total: CATEGORY_URLS.length,
+    percent: 0,
+    message: 'Brauzer işə salınır'
+  });
 
   const browser = await chromium.launch({
     headless: HEADLESS,
@@ -307,11 +325,19 @@ const run = async () => {
   try {
     const categoryCards: BaseListingCard[] = [];
 
-    for (const categoryUrl of CATEGORY_URLS) {
+    for (const [index, categoryUrl] of CATEGORY_URLS.entries()) {
       console.log(`\n📂 Kateqoriya: ${categoryUrl}`);
       const cards = await scrapeCategory(context, categoryUrl);
       console.log(`   ${cards.length} kart oxundu.`);
       categoryCards.push(...cards);
+      reportProgress({
+        phase: 'categories',
+        processed: index + 1,
+        total: CATEGORY_URLS.length,
+        percent: Math.min(100, ((index + 1) / Math.max(1, CATEGORY_URLS.length)) * 100),
+        message: `Kateqoriya ${index + 1}/${CATEGORY_URLS.length} tamamlandı`,
+        items: cards.length
+      });
     }
 
     const uniqueById = new Map<string, BaseListingCard>();
@@ -321,11 +347,41 @@ const run = async () => {
 
     const uniqueCards = Array.from(uniqueById.values());
     console.log(`\nℹ️  Ümumi unikall elanlar: ${uniqueCards.length}`);
+    reportProgress({
+      phase: 'details',
+      processed: 0,
+      total: uniqueCards.length || 1,
+      percent: 0,
+      message: `Detallara başlanır (${uniqueCards.length} elan)`
+    });
 
-    const detailedRecords = await enrichListings(context, uniqueCards);
+    const detailedRecords = await enrichListings(context, uniqueCards, (processed, total) => {
+      reportProgress({
+        phase: 'details',
+        processed,
+        total: total || 1,
+        percent: Math.min(100, (processed / Math.max(1, total)) * 100),
+        message: `Detallı oxunan elanlar ${processed}/${total}`
+      });
+    });
     console.log(`   Detallı oxunan elanlar: ${detailedRecords.length}`);
 
-    await writeSnapshot(detailedRecords);
+    reportProgress({
+      phase: 'saving',
+      processed: 0,
+      total: 1,
+      percent: 80,
+      message: 'Snapshot yazılır'
+    });
+    const snapshotPath = await writeSnapshot(detailedRecords);
+    reportProgress({
+      phase: 'done',
+      processed: 1,
+      total: 1,
+      percent: 100,
+      message: 'Toplayıcı tamamlandı',
+      outputPath: snapshotPath
+    });
     console.log('🏁 Toplayıcı tamamlandı.');
   } finally {
     await context.close();

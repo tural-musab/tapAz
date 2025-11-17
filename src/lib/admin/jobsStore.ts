@@ -53,7 +53,15 @@ export const createJobRecord = async ({ params, status = 'queued' }: CreateJobIn
     status,
     createdAt: new Date().toISOString(),
     params,
-    logPath
+    logPath,
+    progress: {
+      phase: 'queued',
+      processed: 0,
+      total: Math.max(1, params.categoryUrls?.length ?? 1),
+      percent: 0,
+      message: 'Növbədə'
+    },
+    supabaseSyncStatus: 'idle'
   };
 
   const nextJobs = [job, ...jobs].slice(0, 50);
@@ -78,7 +86,8 @@ export const updateJobRecord = async (
     params: {
       ...job.params,
       ...(patch.params ?? {})
-    }
+    },
+    progress: patch.progress ? { ...job.progress, ...patch.progress } : job.progress
   };
   jobs[idx] = nextJob;
   await writeJobs(jobs);

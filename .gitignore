@@ -48,3 +48,6 @@ data/admin-job-logs/
 # editor & tools
 .vscode/
 supabase/.temp/
+
+# data snapshots
+data/snapshots/

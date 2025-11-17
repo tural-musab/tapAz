@@ -61,6 +61,17 @@ export interface AdminScrapeRequest {
   userAgent?: string;
 }
 
+export type SupabaseSyncStatus = 'idle' | 'pending' | 'success' | 'error';
+
+export interface AdminJobProgress {
+  phase: 'queued' | 'initializing' | 'categories' | 'details' | 'saving' | 'done';
+  processed: number;
+  total: number;
+  percent: number;
+  message?: string;
+  etaSeconds?: number;
+}
+
 export interface AdminScrapeJob {
   id: string;
   status: AdminJobStatus;
@@ -73,4 +84,7 @@ export interface AdminScrapeJob {
   logPath: string;
   outputPath?: string;
   errorMessage?: string;
+  progress?: AdminJobProgress;
+  supabaseSyncStatus?: SupabaseSyncStatus;
+  supabaseSyncError?: string;
 }

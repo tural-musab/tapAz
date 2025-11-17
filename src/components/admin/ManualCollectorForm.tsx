@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import type { Category } from '@/lib/types';
-import type { AdminScrapeJob, AdminScrapeSelection } from '@/lib/admin/types';
+import type { AdminScrapeJob, AdminScrapeSelection, SupabaseSyncStatus } from '@/lib/admin/types';
 
 const DEFAULT_FORM = {
   pageLimit: 2,
@@ -34,6 +34,13 @@ const jobStatusLabel: Record<AdminScrapeJob['status'], string> = {
   success: 'Tamamlandı',
   error: 'Xəta',
   idle: 'Dayandırılıb'
+};
+
+const supabaseStatusCopy: Record<SupabaseSyncStatus, string> = {
+  idle: 'Supabase gözləmə rejimindədir',
+  pending: 'Supabase-ə yazılır',
+  success: 'Supabase sinxronu tamamlandı',
+  error: 'Supabase sinxron xətası'
 };
 
 const jobTimeFormat = new Intl.DateTimeFormat('az-AZ', {
@@ -67,6 +74,11 @@ export const ManualCollectorForm = ({ categories, authToken }: ManualCollectorFo
   const [jobHistory, setJobHistory] = useState<AdminScrapeJob[]>([]);
   const [pollingJobId, setPollingJobId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const activeProgressPercent = Math.min(
+    100,
+    Math.round(activeJob?.progress?.percent ?? (activeJob && isJobActive(activeJob) ? 5 : 0))
+  );
 
   const categoryMap = useMemo(() => {
     const map = new Map<string, Category>();
@@ -156,8 +168,18 @@ export const ManualCollectorForm = ({ categories, authToken }: ManualCollectorFo
       }
       setActiveJob(nextActive);
 
-      if (nextActive && isJobActive(nextActive)) {
-        setPollingJobId((current) => current ?? nextActive?.id ?? null);
+      if (nextActive) {
+        if (isJobActive(nextActive)) {
+          setStatus('running');
+          setStatusMessage(nextActive.progress?.message ?? 'Playwright job icra olunur...');
+          setPollingJobId((current) => current ?? nextActive?.id ?? null);
+        } else if (nextActive.status === 'success') {
+          setStatus('success');
+          setStatusMessage('Son job tamamlandı.');
+        } else if (nextActive.status === 'error') {
+          setStatus('error');
+          setStatusMessage(nextActive.errorMessage ?? 'Job xətası baş verdi.');
+        }
       }
     } catch (error) {
       console.error('Job list xətası', error);
@@ -176,8 +198,10 @@ export const ManualCollectorForm = ({ categories, authToken }: ManualCollectorFo
         const data = await response.json();
         const job: AdminScrapeJob = data.job;
         setActiveJob(job);
-
-        if (!isJobActive(job)) {
+        if (isJobActive(job)) {
+          setStatus('running');
+          setStatusMessage(job.progress?.message ?? 'Playwright job icra olunur...');
+        } else {
           setPollingJobId(null);
           setStatus(job.status === 'success' ? 'success' : 'error');
           setStatusMessage(
@@ -304,8 +328,8 @@ export const ManualCollectorForm = ({ categories, authToken }: ManualCollectorFo
       const job: AdminScrapeJob = data.job;
       setActiveJob(job);
       setJobHistory((prev) => [job, ...prev.filter((item) => item.id !== job.id)].slice(0, 25));
-      setStatus('success');
-      setStatusMessage(`Job #${job.id.slice(0, 8)} sıraya alındı.`);
+      setStatus('running');
+      setStatusMessage(`Job #${job.id.slice(0, 8)} növbəyə əlavə olundu.`);
       setPollingJobId(job.id);
     } catch (error) {
       setStatus('error');
@@ -469,6 +493,26 @@ export const ManualCollectorForm = ({ categories, authToken }: ManualCollectorFo
               <p className="mt-1 text-xs text-slate-500">
                 Başlanğıc: {formatJobTime(activeJob.startedAt)} · Bitmə: {formatJobTime(activeJob.finishedAt)}
               </p>
+              {activeJob.progress && (
+                <div className="mt-4">
+                  <div className="flex items-center justify-between text-[11px] text-slate-400">
+                    <span>{activeJob.progress.message ?? 'İcra olunur...'}</span>
+                    <span>{Math.round(activeJob.progress.percent)}%</span>
+                  </div>
+                  <div className="mt-2 h-2 rounded-full bg-slate-800/80">
+                    <div
+                      className="h-2 rounded-full bg-emerald-500/90 transition-all"
+                      style={{ width: `${activeProgressPercent}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+              {activeJob.supabaseSyncStatus && (
+                <p className="mt-2 text-[11px] text-slate-500">
+                  Supabase: {supabaseStatusCopy[activeJob.supabaseSyncStatus]}{' '}
+                  {activeJob.supabaseSyncStatus === 'error' && activeJob.supabaseSyncError ? `(${activeJob.supabaseSyncError})` : null}
+                </p>
+              )}
             </div>
           ) : (
             <div className="rounded-xl border border-dashed border-slate-800/70 bg-slate-950/20 p-4 text-xs text-slate-500">
