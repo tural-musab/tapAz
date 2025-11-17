@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import type { Category } from '@/lib/types';
+import type { AdminScrapeJob, AdminScrapeSelection } from '@/lib/admin/types';
 
 const DEFAULT_FORM = {
   pageLimit: 2,
@@ -19,22 +20,194 @@ const statusStyles: Record<'idle' | 'running' | 'success' | 'error', string> = {
   error: 'text-rose-300'
 };
 
+const jobStatusTone: Record<AdminScrapeJob['status'], string> = {
+  queued: 'bg-slate-800/80 text-slate-200',
+  running: 'bg-amber-500/20 text-amber-200',
+  success: 'bg-emerald-500/20 text-emerald-200',
+  error: 'bg-rose-500/20 text-rose-200',
+  idle: 'bg-slate-700/40 text-slate-200'
+};
+
+const jobStatusLabel: Record<AdminScrapeJob['status'], string> = {
+  queued: 'Növbədə',
+  running: 'İcra olunur',
+  success: 'Tamamlandı',
+  error: 'Xəta',
+  idle: 'Dayandırılıb'
+};
+
+const jobTimeFormat = new Intl.DateTimeFormat('az-AZ', {
+  day: '2-digit',
+  month: 'short',
+  hour: '2-digit',
+  minute: '2-digit'
+});
+
+const formatJobTime = (value?: string) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return jobTimeFormat.format(date);
+};
+
+const isJobActive = (job?: AdminScrapeJob | null) => job?.status === 'running' || job?.status === 'queued';
+
 interface ManualCollectorFormProps {
   categories: Category[];
+  authToken?: string;
 }
 
-export const ManualCollectorForm = ({ categories }: ManualCollectorFormProps) => {
+export const ManualCollectorForm = ({ categories, authToken }: ManualCollectorFormProps) => {
   const [formState, setFormState] = useState(DEFAULT_FORM);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
   const [status, setStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState('Hələ job işə salınmayıb.');
+  const [activeJob, setActiveJob] = useState<AdminScrapeJob | null>(null);
+  const [jobHistory, setJobHistory] = useState<AdminScrapeJob[]>([]);
+  const [pollingJobId, setPollingJobId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const categoryMap = useMemo(() => {
     const map = new Map<string, Category>();
     categories.forEach((category) => map.set(category.id, category));
     return map;
   }, [categories]);
+
+  const selectionPayload = useMemo(() => {
+    const selections: AdminScrapeSelection[] = [];
+    const categoryCounter = new Set<string>();
+
+    categories.forEach((category) => {
+      const isCategorySelected = selectedCategories.includes(category.id);
+      const selectedSubs = category.subcategories.filter((sub) => selectedSubcategories.includes(sub.id));
+
+      if (selectedSubs.length > 0) {
+        selectedSubs.forEach((sub) => {
+          selections.push({
+            categoryId: category.id,
+            subcategoryId: sub.id,
+            label: `${category.name} → ${sub.name}`
+          });
+        });
+        categoryCounter.add(category.id);
+        return;
+      }
+
+      if (isCategorySelected) {
+        selections.push({
+          categoryId: category.id,
+          label: category.name
+        });
+        categoryCounter.add(category.id);
+      }
+    });
+
+    const categoryUrls = Array.from(
+      new Set(
+        selections.map((selection) => {
+          const base = `https://tap.az/elanlar/${selection.categoryId}`;
+          return selection.subcategoryId ? `${base}/${selection.subcategoryId}` : base;
+        })
+      )
+    );
+
+    const summary =
+      selections.length === 0
+        ? 'Seçim edilməyib'
+        : `${categoryCounter.size} kateqoriya · ${selections.filter((item) => item.subcategoryId).length} subkateqoriya`;
+
+    return { selections, categoryUrls, summary };
+  }, [categories, selectedCategories, selectedSubcategories]);
+
+  const buildAuthHeaders = useCallback(
+    (options?: { json?: boolean }) => {
+      const headers = new Headers();
+      if (options?.json) {
+        headers.set('Content-Type', 'application/json');
+      }
+      if (authToken) {
+        headers.set('x-admin-token', authToken);
+      }
+      return headers;
+    },
+    [authToken]
+  );
+
+  const refreshJobs = useCallback(async () => {
+    try {
+      const response = await fetch('/api/admin/scrape', {
+        headers: buildAuthHeaders()
+      });
+      if (!response.ok) {
+        return;
+      }
+
+      const data = await response.json();
+      const jobs: AdminScrapeJob[] = data.jobs ?? [];
+      setJobHistory(jobs);
+
+      let nextActive: AdminScrapeJob | null = activeJob;
+      if (activeJob) {
+        nextActive = jobs.find((job) => job.id === activeJob.id) ?? null;
+      }
+      if (!nextActive) {
+        nextActive = jobs.find((job) => isJobActive(job)) ?? null;
+      }
+      setActiveJob(nextActive);
+
+      if (nextActive && isJobActive(nextActive)) {
+        setPollingJobId((current) => current ?? nextActive?.id ?? null);
+      }
+    } catch (error) {
+      console.error('Job list xətası', error);
+    }
+  }, [activeJob, buildAuthHeaders]);
+
+  const fetchJobStatus = useCallback(
+    async (jobId: string) => {
+      try {
+        const response = await fetch(`/api/admin/scrape/${jobId}`, {
+          headers: buildAuthHeaders()
+        });
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json();
+        const job: AdminScrapeJob = data.job;
+        setActiveJob(job);
+
+        if (!isJobActive(job)) {
+          setPollingJobId(null);
+          setStatus(job.status === 'success' ? 'success' : 'error');
+          setStatusMessage(
+            job.status === 'success' ? 'Playwright job-u tamamlandı.' : job.errorMessage ?? 'Playwright job-u xətası.'
+          );
+          refreshJobs();
+        }
+      } catch (error) {
+        console.error('Job status xətası', error);
+      }
+    },
+    [buildAuthHeaders, refreshJobs]
+  );
+
+  useEffect(() => {
+    refreshJobs();
+  }, [refreshJobs]);
+
+  useEffect(() => {
+    if (!pollingJobId) {
+      return;
+    }
+
+    fetchJobStatus(pollingJobId);
+    const timer = setInterval(() => {
+      fetchJobStatus(pollingJobId);
+    }, 5000);
+
+    return () => clearInterval(timer);
+  }, [fetchJobStatus, pollingJobId]);
 
   const handleCategoryToggle = (category: Category) => {
     const isSelected = selectedCategories.includes(category.id);
@@ -92,33 +265,55 @@ export const ManualCollectorForm = ({ categories }: ManualCollectorFormProps) =>
     }));
   };
 
-  const selectedSummary = useMemo(() => {
-    const subCount = selectedSubcategories.length;
-    const catCount = selectedCategories.length;
-
-    if (!subCount) {
-      return 'Seçim edilməyib';
-    }
-
-    return `${catCount} kateqoriya · ${subCount} subkateqoriya`;
-  }, [selectedCategories.length, selectedSubcategories.length]);
+  const selectedSummary = selectionPayload.summary;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (selectedSubcategories.length === 0) {
+    if (selectionPayload.categoryUrls.length === 0) {
       setStatus('error');
-      setStatusMessage('Ən azı bir subkateqoriya seçilməlidir.');
+      setStatusMessage('Ən azı bir kateqoriya və ya subkateqoriya seçilməlidir.');
       return;
     }
 
     setStatus('running');
-    setStatusMessage('Playwright job hazırlanır...');
+    setStatusMessage('Playwright job işə salınır...');
+    setIsSubmitting(true);
 
-    await new Promise((resolve) => setTimeout(resolve, 1200));
+    try {
+      const response = await fetch('/api/admin/scrape', {
+        method: 'POST',
+        headers: buildAuthHeaders({ json: true }),
+        body: JSON.stringify({
+          categoryUrls: selectionPayload.categoryUrls,
+          selections: selectionPayload.selections,
+          pageLimit: formState.pageLimit,
+          listingLimit: formState.listingLimit,
+          delayMs: formState.delayMs,
+          detailDelayMs: formState.detailDelayMs,
+          headless: formState.headless
+        })
+      });
 
-    setStatus('success');
-    setStatusMessage('Mock rejim: parametr paketiniz server API-sinə ötürülməyə hazırdır.');
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error ?? 'Server xətası baş verdi.');
+      }
+
+      const data = await response.json();
+      const job: AdminScrapeJob = data.job;
+      setActiveJob(job);
+      setJobHistory((prev) => [job, ...prev.filter((item) => item.id !== job.id)].slice(0, 25));
+      setStatus('success');
+      setStatusMessage(`Job #${job.id.slice(0, 8)} sıraya alındı.`);
+      setPollingJobId(job.id);
+    } catch (error) {
+      setStatus('error');
+      setStatusMessage((error as Error).message ?? 'Sorğu xətası baş verdi.');
+    } finally {
+      setIsSubmitting(false);
+      refreshJobs();
+    }
   };
 
   return (
@@ -216,8 +411,8 @@ export const ManualCollectorForm = ({ categories }: ManualCollectorFormProps) =>
               Kateqoriya gecikməsi (ms)
               <input
                 type="number"
-                min={500}
-                step={100}
+                min={250}
+                step={50}
                 name="delayMs"
                 value={formState.delayMs}
                 onChange={handleInputChange}
@@ -228,8 +423,8 @@ export const ManualCollectorForm = ({ categories }: ManualCollectorFormProps) =>
               Detal səhifəsi gecikməsi (ms)
               <input
                 type="number"
-                min={500}
-                step={100}
+                min={250}
+                step={50}
                 name="detailDelayMs"
                 value={formState.detailDelayMs}
                 onChange={handleInputChange}
@@ -251,13 +446,51 @@ export const ManualCollectorForm = ({ categories }: ManualCollectorFormProps) =>
           <button
             type="submit"
             className="w-full rounded-xl bg-emerald-500/90 px-4 py-3 text-center text-base font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-40"
-            disabled={status === 'running'}
+            disabled={isSubmitting || status === 'running'}
           >
             {status === 'running' ? 'İcra olunur...' : 'İndi topla'}
           </button>
           <p className="text-xs text-slate-500">
-            Bu mərhələdə düymə yalnız mock cavab qaytarır. `POST /api/admin/scrape` endpoint-i növbəti mərhələdə birləşdiriləcək.
+            Sorğu uğurla qəbul edildikdə Playwright skripti child-process kimi işə salınır və statusu aşağıdakı paneldə izlənə bilir.
           </p>
+
+          {activeJob ? (
+            <div className="rounded-2xl border border-slate-800/70 bg-slate-950/40 p-4 text-sm text-slate-300">
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-semibold text-white">Son job #{activeJob.id.slice(0, 8)}</p>
+                <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${jobStatusTone[activeJob.status]}`}>
+                  {jobStatusLabel[activeJob.status]}
+                </span>
+              </div>
+              <p className="mt-2 text-xs text-slate-400">
+                URL sayı: {activeJob.params.categoryUrls.length} · Limit: {activeJob.params.pageLimit} səhifə /{' '}
+                {activeJob.params.listingLimit} elan
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Başlanğıc: {formatJobTime(activeJob.startedAt)} · Bitmə: {formatJobTime(activeJob.finishedAt)}
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-slate-800/70 bg-slate-950/20 p-4 text-xs text-slate-500">
+              Hələ heç bir job işə salınmayıb.
+            </div>
+          )}
+
+          {jobHistory.length > 0 && (
+            <div className="rounded-2xl border border-slate-800/70 bg-slate-950/30 p-4">
+              <p className="text-sm font-semibold text-white">Son job-lar</p>
+              <ul className="mt-3 space-y-2 text-xs text-slate-400">
+                {jobHistory.slice(0, 4).map((job) => (
+                  <li key={job.id} className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-slate-300">#{job.id.slice(0, 8)}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${jobStatusTone[job.status]}`}>
+                      {jobStatusLabel[job.status]}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </form>
     </section>

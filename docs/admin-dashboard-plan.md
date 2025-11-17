@@ -49,6 +49,6 @@ Bu plan əsasında növbəti addım admin route skeletini və əsas komponentlə
 
 ### 7. İcra Statusu
 - [x] `/admin` route + layout + mock komponentlər – 2025-11-17
-- [ ] `POST /api/admin/scrape` + status API (plan3)
+- [x] `POST /api/admin/scrape` + status API (plan3)
 - [ ] Supabase plan CRUD + cron scaffolding (plan4)
 - [ ] GitHub Actions → Vercel monitorinq addımları (plan5)

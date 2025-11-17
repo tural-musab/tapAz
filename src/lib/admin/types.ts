@@ -42,3 +42,34 @@ export interface ManualCollectorPreset {
   defaultDelayMs: number;
   defaultDetailDelayMs: number;
 }
+
+export interface AdminScrapeSelection {
+  categoryId: string;
+  subcategoryId?: string;
+  label?: string;
+}
+
+export interface AdminScrapeRequest {
+  categoryUrls: string[];
+  selections: AdminScrapeSelection[];
+  pageLimit: number;
+  listingLimit: number;
+  delayMs: number;
+  detailDelayMs: number;
+  headless: boolean;
+  userAgent?: string;
+}
+
+export interface AdminScrapeJob {
+  id: string;
+  status: AdminJobStatus;
+  createdAt: string;
+  startedAt?: string;
+  finishedAt?: string;
+  params: AdminScrapeRequest & {
+    triggeredBy: string;
+  };
+  logPath: string;
+  outputPath?: string;
+  errorMessage?: string;
+}

@@ -98,7 +98,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         <AdminOverview stats={mockOverview} />
       </div>
       <div id="manual">
-        <ManualCollectorForm categories={availableCategories} />
+        <ManualCollectorForm categories={availableCategories} authToken={auth.resolvedToken} />
       </div>
       <div id="nightly">
         <NightlyPlanCard categories={availableCategories} plan={mockNightlyPlan} />
@@ -108,7 +108,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       </div>
       <div className="rounded-2xl border border-slate-800/60 bg-slate-900/40 p-4 text-xs text-slate-400">
         <p>Token mənbəyi: {auth.tokenSource ?? 'məhdudlaşdırılmayıb'}</p>
-        <p>Bu səhifə hazırda mock məlumatlarla çalışır. `plan2` mərhələsi tamamlandı və API inteqrasiyası növbəti mərhələyə daxildir.</p>
+        {auth.resolvedToken ? (
+          <p>POST /api/admin/scrape və GET /api/admin/scrape/:jobId sorğularında `x-admin-token` header-i avtomatik əlavə olunur.</p>
+        ) : (
+          <p>Token təyin edilməyib, hazırda endpoint-lər açıq şəkildə işləyir.</p>
+        )}
+        <p>Admin paneli hazırda lokal job idarəçisini nümayiş etdirir; növbəti fazada Supabase planı ilə inteqrasiya ediləcək.</p>
       </div>
     </div>
   );

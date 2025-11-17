@@ -6,6 +6,7 @@ export interface AdminAuthResult {
   allowed: boolean;
   message?: string;
   tokenSource?: AdminTokenSource;
+  resolvedToken?: string;
 }
 
 export type AdminSearchParams = Record<string, string | string[] | undefined>;
@@ -58,7 +59,8 @@ export const validateAdminAccess = async (searchParams: AdminSearchParams): Prom
     return {
       allowed: true,
       message: `Token ${matchedSource.source} vasitəsilə təsdiqləndi.`,
-      tokenSource: matchedSource.source
+      tokenSource: matchedSource.source,
+      resolvedToken: matchedSource.value
     };
   }
 
