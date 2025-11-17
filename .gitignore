@@ -51,3 +51,5 @@ supabase/.temp/
 
 # data snapshots
 data/snapshots/
+# corrupted job backups
+data/admin-jobs-corrupted-*.json

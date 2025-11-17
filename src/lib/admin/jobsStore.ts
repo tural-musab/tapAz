@@ -12,10 +12,28 @@ const ensureDirs = async () => {
   await fs.mkdir(LOG_DIR, { recursive: true });
 };
 
+const createCorruptedBackup = async (raw: string) => {
+  try {
+    await ensureDirs();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupPath = path.join(DATA_DIR, `admin-jobs-corrupted-${timestamp}.json`);
+    await fs.writeFile(backupPath, raw, 'utf8');
+    console.warn(`admin-jobs.json parse error. Backup: ${backupPath}`);
+  } catch (backupError) {
+    console.error('admin-jobs.json backup alınmadı:', backupError);
+  }
+};
+
 const readJobs = async (): Promise<AdminScrapeJob[]> => {
   try {
     const raw = await fs.readFile(JOBS_FILE, 'utf8');
-    return JSON.parse(raw) as AdminScrapeJob[];
+    try {
+      return JSON.parse(raw) as AdminScrapeJob[];
+    } catch {
+      await createCorruptedBackup(raw);
+      await fs.writeFile(JOBS_FILE, '[]', 'utf8');
+      return [];
+    }
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       return [];
@@ -26,7 +44,9 @@ const readJobs = async (): Promise<AdminScrapeJob[]> => {
 
 const writeJobs = async (jobs: AdminScrapeJob[]) => {
   await ensureDirs();
-  await fs.writeFile(JOBS_FILE, JSON.stringify(jobs, null, 2), 'utf8');
+  const tempFile = `${JOBS_FILE}.tmp`;
+  await fs.writeFile(tempFile, JSON.stringify(jobs, null, 2), 'utf8');
+  await fs.rename(tempFile, JOBS_FILE);
 };
 
 export const listJobs = async (limit = 25): Promise<AdminScrapeJob[]> => {

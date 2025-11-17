@@ -132,13 +132,15 @@ export const NightlyPlanCard = ({ categories, plan: initialPlan, authToken, sour
   };
 
   const upcomingRun = useMemo(() => {
-    const nextDate = new Date();
-    nextDate.setHours(2, 0, 0, 0);
-    if (nextDate.getTime() < Date.now()) {
-      nextDate.setDate(nextDate.getDate() + 1);
+    const parts = (plan.cronExpression ?? '').trim().split(/\s+/);
+    const minute = Number(parts[0]);
+    const hour = Number(parts[1]);
+    const pad = (value: number) => String(value).padStart(2, '0');
+    if (Number.isFinite(minute) && Number.isFinite(hour)) {
+      return `${pad(hour)}:${pad(minute)} · ${plan.timezone}`;
     }
-    return nextDate.toLocaleString('az-AZ', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' });
-  }, []);
+    return `${plan.cronExpression} · ${plan.timezone}`;
+  }, [plan.cronExpression, plan.timezone]);
 
   return (
     <section className="rounded-2xl border border-slate-800/60 bg-slate-900/40 p-6">
