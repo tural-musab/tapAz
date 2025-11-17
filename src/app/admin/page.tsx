@@ -8,6 +8,7 @@ import { EXCLUDED_CATEGORY_IDS } from '@/lib/constants';
 import { validateAdminAccess } from '@/lib/admin/auth';
 import type { AdminActivityItem, AdminNightlyPlanState, AdminOverviewStats } from '@/lib/admin/types';
 import type { Category, Listing } from '@/lib/types';
+import type { AdminSearchParams } from '@/lib/admin/auth';
 
 const listings = listingsData as Listing[];
 const categories = categoriesData as Category[];
@@ -64,7 +65,7 @@ const mockActivities: AdminActivityItem[] = [
 ];
 
 interface AdminPageProps {
-  searchParams: Record<string, string | string[] | undefined>;
+  searchParams: Promise<AdminSearchParams>;
 }
 
 const UnauthorizedPanel = ({ message }: { message?: string }) => (
@@ -80,7 +81,8 @@ const UnauthorizedPanel = ({ message }: { message?: string }) => (
 );
 
 export default async function AdminPage({ searchParams }: AdminPageProps) {
-  const auth = await validateAdminAccess(searchParams);
+  const resolvedSearchParams = await searchParams;
+  const auth = await validateAdminAccess(resolvedSearchParams);
 
   if (!auth.allowed) {
     return (
