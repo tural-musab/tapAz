@@ -45,6 +45,19 @@ interface ScrapedListing extends BaseListingCard {
   raw?: ListingDetail;
 }
 
+type JsonLdOffer = {
+  seller?: { name?: string };
+  priceCurrency?: string;
+  availabilityStarts?: string;
+};
+
+type JsonLdProduct = {
+  '@type'?: string;
+  description?: string;
+  image?: string | string[];
+  offers?: JsonLdOffer;
+};
+
 const CATEGORY_URLS = (process.env.SCRAPE_CATEGORY_URLS ?? 'https://tap.az/elanlar/elektronika')
   .split(',')
   .map((url) => url.trim())
@@ -125,10 +138,10 @@ const scrapeListingDetail = async (page: Page, url: string): Promise<ListingDeta
     const favoritesStat = statsTexts.find((text) => text?.includes('Seçilmiş'));
 
     const jsonLdScripts = Array.from(document.querySelectorAll<HTMLScriptElement>('script[type="application/ld+json"]'));
-    let productData: Record<string, unknown> | undefined;
+    let productData: JsonLdProduct | undefined;
     for (const script of jsonLdScripts) {
       try {
-        const parsed = JSON.parse(script.textContent ?? '{}');
+        const parsed = JSON.parse(script.textContent ?? '{}') as JsonLdProduct;
         if (parsed['@type'] === 'Product') {
           productData = parsed;
           break;
@@ -142,22 +155,22 @@ const scrapeListingDetail = async (page: Page, url: string): Promise<ListingDeta
     const currencyAttr = document.querySelector<HTMLElement>('[itemprop="priceCurrency"]')?.getAttribute('content');
     const description =
       document.querySelector<HTMLElement>('.product-description')?.textContent?.trim() ??
-      (productData?.description as string | undefined);
+      productData?.description;
 
     const sellerName =
       document.querySelector<HTMLElement>('.product-info__shop-name')?.textContent?.trim() ??
-      (productData?.offers as Record<string, unknown> | undefined)?.seller?.['name'];
+      productData?.offers?.seller?.name;
 
     const hasShopBadge = Boolean(document.querySelector('.product-info__shop'));
     const conditionLabel = document.querySelector<HTMLElement>('.product-info__stats')?.textContent?.trim();
     const isNew = conditionLabel?.toLocaleLowerCase('az').includes('yeni');
 
     const postedAtISO =
-      ((productData?.offers as Record<string, unknown> | undefined)?.availabilityStarts as string | undefined) ??
+      productData?.offers?.availabilityStarts ??
       document.querySelector<HTMLMetaElement>('meta[property="og:updated_time"]')?.content;
 
     const primaryImage =
-      (productData?.image as string | undefined) ??
+      (Array.isArray(productData?.image) ? productData?.image[0] : productData?.image) ??
       document.querySelector<HTMLImageElement>('.product-gallery img, .product-image img')?.src ??
       document.querySelector<HTMLMetaElement>('meta[property="og:image"]')?.content ??
       undefined;
@@ -173,9 +186,9 @@ const scrapeListingDetail = async (page: Page, url: string): Promise<ListingDeta
       viewCount: viewStat ? Number(viewStat.replace(/[^\d]/g, '')) : undefined,
       favoritesCount: favoritesStat ? Number(favoritesStat.replace(/[^\d]/g, '')) : undefined,
       price: priceAttr ? Number(priceAttr) : undefined,
-      currency: currencyAttr ?? (productData?.offers as Record<string, unknown> | undefined)?.priceCurrency ?? 'AZN',
+      currency: currencyAttr ?? productData?.offers?.priceCurrency ?? 'AZN',
       imageUrl: primaryImage,
-      jsonLd: productData
+      jsonLd: productData as Record<string, unknown> | undefined
     };
   });
 
