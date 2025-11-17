@@ -164,6 +164,7 @@ const scrapeListingDetail = async (page: Page, url: string): Promise<ListingDeta
     const hasShopBadge = Boolean(document.querySelector('.product-info__shop'));
     const conditionLabel = document.querySelector<HTMLElement>('.product-info__stats')?.textContent?.trim();
     const isNew = conditionLabel?.toLocaleLowerCase('az').includes('yeni');
+    const sellerType: 'store' | 'individual' = hasShopBadge ? 'store' : 'individual';
 
     const postedAtISO =
       productData?.offers?.availabilityStarts ??
@@ -178,7 +179,7 @@ const scrapeListingDetail = async (page: Page, url: string): Promise<ListingDeta
     return {
       description,
       sellerName,
-      sellerType: hasShopBadge ? 'store' : 'individual',
+      sellerType,
       postedAtText: statsTexts?.[0],
       postedAtISO,
       conditionLabel,

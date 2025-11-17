@@ -108,7 +108,8 @@ const scrapeCategories = async (): Promise<CategoryLink[]> => {
     console.warn('Canlı sayt strukturu oxunmadı, fallback kateqoriyalarından istifadə ediləcək.', error);
   }
 
-  return (categoriesFallback as CategoryLink[]).map((category) => ({
+  const fallbackCategories = categoriesFallback as Array<{ id: string; name: string }>;
+  return fallbackCategories.map<CategoryLink>((category) => ({
     id: category.id,
     name: category.name,
     url: `${BASE_URL}/elanlar/${category.id}`
