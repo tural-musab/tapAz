@@ -51,7 +51,7 @@ Bu plan əsasında növbəti addım admin route skeletini və əsas komponentlə
 - [x] `/admin` route + layout + mock komponentlər – 2025-11-17
 - [x] `POST /api/admin/scrape` + status API (plan3)
 - [x] Supabase plan CRUD + cron scaffolding (plan4) – 2025-11-17
-- [ ] GitHub Actions → Vercel monitorinq addımları (plan5)
+- [x] GitHub Actions → Vercel monitorinq addımları (plan5) – 2025-11-17
 
 ### 8. Supabase və Cron Scaffoldu
 - `scheduler_settings` cədvəli: `id text primary key`, `cron_expression text`, `timezone text`, `updated_at timestamptz`, `updated_by text`.

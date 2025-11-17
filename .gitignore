@@ -44,3 +44,6 @@ next-env.d.ts
 # admin job artefacts
 data/admin-jobs.json
 data/admin-job-logs/
+
+# editor
+.vscode/

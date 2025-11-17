@@ -8,6 +8,7 @@ import { EXCLUDED_CATEGORY_IDS } from '@/lib/constants';
 import { validateAdminAccess } from '@/lib/admin/auth';
 import type { AdminActivityItem, AdminOverviewStats } from '@/lib/admin/types';
 import { loadNightlyPlan } from '@/lib/admin/planStore';
+import { fetchLatestDeployments } from '@/lib/admin/vercel';
 import type { Category, Listing } from '@/lib/types';
 import type { AdminSearchParams } from '@/lib/admin/auth';
 
@@ -86,6 +87,22 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   }
 
   const planPayload = await loadNightlyPlan();
+  const vercelStatus = await fetchLatestDeployments(5);
+  const vercelActivities: AdminActivityItem[] = vercelStatus.deployments.map((deployment) => ({
+    id: deployment.id,
+    title: `Vercel deployment ${deployment.state}`,
+    description: deployment.url,
+    timestamp: deployment.createdAt,
+    status:
+      deployment.state === 'READY'
+        ? 'success'
+        : deployment.state === 'ERROR'
+          ? 'error'
+          : 'running',
+    link: deployment.url,
+    linkLabel: 'Vercel'
+  }));
+  const activityFeed = (vercelActivities.length > 0 ? vercelActivities : mockActivities).slice(0, 5);
 
   return (
     <div className="space-y-8">
@@ -104,7 +121,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         />
       </div>
       <div id="activity">
-        <ActivityTimeline activities={mockActivities} />
+        <ActivityTimeline activities={activityFeed} />
       </div>
       <div className="rounded-2xl border border-slate-800/60 bg-slate-900/40 p-4 text-xs text-slate-400">
         <p>Token mənbəyi: {auth.tokenSource ?? 'məhdudlaşdırılmayıb'}</p>
