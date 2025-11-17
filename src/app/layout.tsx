@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
+import { AppHeader } from '@/components/layout/AppHeader';
+import { readSession } from '@/lib/auth/session';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -31,10 +33,15 @@ export const metadata: Metadata = {
   }
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const session = await readSession();
+
   return (
     <html lang="az">
-      <body className={`${geistSans.variable} ${geistMono.variable} bg-slate-950 antialiased`}>{children}</body>
+      <body className={`${geistSans.variable} ${geistMono.variable} bg-slate-950 antialiased`}>
+        <AppHeader session={session} />
+        {children}
+      </body>
     </html>
   );
 }

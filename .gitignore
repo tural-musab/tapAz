@@ -41,9 +41,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# admin job artefacts
+# admin job artefaktları
 data/admin-jobs.json
 data/admin-job-logs/
 
-# editor
+# editor & tools
 .vscode/
+supabase/.temp/

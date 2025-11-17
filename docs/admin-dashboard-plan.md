@@ -81,3 +81,9 @@ Bu plan əsasında növbəti addım admin route skeletini və əsas komponentlə
               https://<domain>/api/admin/scrape
   ```
 - `VERCEL_TOKEN` gələcək mərhələdə build monitorinqi üçün istifadə olunacaq; hazırda `.env.local` daxilində saxlanılır.
+
+### 9. Auth & Sessiya Layihəsi
+- Login səhifəsi iki demo istifadəçi ilə təmin edilib: `tapaz_admin / Admin!2024` (admin) və `tapaz_user / User!2024` (normal). Dəyərləri `AUTH_*` env dəyişənləri ilə yeniləyə bilərsiniz.
+- `middleware.ts` bütün route-ları qoruyur; yalnız `/login` və auth API-ləri istisnadır. Admin route-u əlavə olaraq rolu yoxlayır.
+- Sessiya cookie-ləri: `tapaz-role`, `tapaz-username`, admin istifadəçilər üçün `tapaz-admin-token` (`ADMIN_DASHBOARD_TOKEN` dəyəri ilə).
+- Header komponenti cari istifadəçini göstərir və `Logout` düyməsi `POST /api/auth/logout` endpoint-i ilə cookie-ləri silir.
