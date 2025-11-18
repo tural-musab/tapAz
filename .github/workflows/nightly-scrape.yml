@@ -22,7 +22,6 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
-          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -90,7 +89,7 @@ jobs:
             "${API_URL}"
 
       - name: Upload latest snapshot artifact
-        if: always()
+        if: always() && hashFiles('data/snapshots/*.json') != ''
         uses: actions/upload-artifact@v4
         with:
           name: tapaz-snapshot
