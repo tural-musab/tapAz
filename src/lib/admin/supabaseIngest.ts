@@ -5,6 +5,7 @@ import type { SupabaseSyncStatus } from '@/lib/admin/types';
 interface SnapshotItem {
   tapId?: string;
   title?: string;
+  description?: string;
   price?: number;
   currency?: string;
   sellerName?: string;
