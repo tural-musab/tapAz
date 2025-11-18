@@ -120,7 +120,16 @@ const navigateToCategoryPage = async (page: Page, url: string) => {
 const scrapeCategoryPage = async (page: Page, categoryUrl: string, pageNumber: number) => {
   const url = pageNumber > 1 ? `${categoryUrl}?page=${pageNumber}` : categoryUrl;
   await navigateToCategoryPage(page, url);
-  await page.waitForSelector(CARD_SELECTOR, { timeout: 45_000 });
+  try {
+    await page.waitForSelector(CARD_SELECTOR, { timeout: 45_000 });
+  } catch (error) {
+    const html = await page.content();
+    console.warn(
+      `⚠️  ${categoryUrl} selector gözləmə zamanı tapılmadı. Cari URL: ${page.url()} · HTML sətir uzunluğu: ${html.length}`
+    );
+    console.warn(html.slice(0, 1000));
+    throw error;
+  }
 
   const listings = await page.$$eval(CARD_SELECTOR, (cards) =>
     cards
