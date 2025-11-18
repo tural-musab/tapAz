@@ -74,6 +74,8 @@ const PAGE_DELAY_MS = Number(process.env.SCRAPE_DELAY_MS ?? '1500');
 const DETAIL_DELAY_MS = Number(process.env.SCRAPE_DETAIL_DELAY_MS ?? '1200');
 const OUTPUT_DIR = process.env.SCRAPE_OUTPUT_DIR ?? path.join(process.cwd(), 'data', 'snapshots');
 const HEADLESS = (process.env.SCRAPE_HEADLESS ?? 'true').toLowerCase() !== 'false';
+const CF_CLEARANCE = process.env.SCRAPE_CF_CLEARANCE;
+const CF_DOMAIN = process.env.SCRAPE_CF_DOMAIN ?? '.tap.az';
 
 const EXCLUDED_PATH_SNIPPETS = ['/elanlar/is-elanlari'];
 const CARD_SELECTOR = '.products-i, [data-testid="product-card"]';
@@ -405,6 +407,19 @@ const run = async () => {
       get: () => [1, 2, 3, 4]
     });
   });
+
+  if (CF_CLEARANCE) {
+    await context.addCookies([
+      {
+        name: 'cf_clearance',
+        value: CF_CLEARANCE,
+        domain: CF_DOMAIN,
+        path: '/',
+        secure: true,
+        httpOnly: false
+      }
+    ]);
+  }
 
   try {
     const categoryCards: BaseListingCard[] = [];

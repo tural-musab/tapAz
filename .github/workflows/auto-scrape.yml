@@ -78,6 +78,8 @@ jobs:
           SCRAPE_DELAY_MS: ${{ vars.SCRAPE_DELAY_MS || '1500' }}
           SCRAPE_DETAIL_DELAY_MS: ${{ vars.SCRAPE_DETAIL_DELAY_MS || '2200' }}
           SCRAPE_HEADLESS: 'true'
+          SCRAPE_CF_CLEARANCE: ${{ secrets.SCRAPE_CF_CLEARANCE }}
+          SCRAPE_CF_DOMAIN: ${{ vars.SCRAPE_CF_DOMAIN || '.tap.az' }}
         run: |
           npx playwright install --with-deps chromium
           npx tsx scripts/tapazCollector.playwright.ts
