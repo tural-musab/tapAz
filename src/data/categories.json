@@ -1,6 +1,7 @@
 [
   {
     "id": "electronics",
+    "slug": "elektronika",
     "name": "Elektronika",
     "note": "Telefonlar, kompüterlər və digər cihazlar",
     "subcategories": [
@@ -22,6 +23,7 @@
   },
   {
     "id": "home_garden",
+    "slug": "ev-ve-bag-ucun",
     "name": "Ev və bağ üçün",
     "note": "Mebel, texnika və məişət malları",
     "subcategories": [
@@ -32,6 +34,7 @@
   },
   {
     "id": "vehicles",
+    "slug": "neqliyyat",
     "name": "Nəqliyyat",
     "note": "Avtomobil və ehtiyat hissələri",
     "subcategories": [
@@ -42,6 +45,7 @@
   },
   {
     "id": "personal_items",
+    "slug": "sexsi-esyalar",
     "name": "Şəxsi əşyalar",
     "note": "Geyim, aksesuar, uşaq aləmi",
     "subcategories": [
@@ -52,6 +56,7 @@
   },
   {
     "id": "services_business",
+    "slug": "xidmetler",
     "name": "Xidmətlər və biznes",
     "note": "Peşəkar və fərdi xidmətlər",
     "subcategories": [
@@ -62,6 +67,7 @@
   },
   {
     "id": "jobs",
+    "slug": "is-elanlari",
     "name": "İş elanları",
     "note": "Müştərinin tələbi ilə istisna edilir",
     "subcategories": [
@@ -71,4 +77,3 @@
     ]
   }
 ]
-
