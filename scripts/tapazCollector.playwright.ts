@@ -76,6 +76,7 @@ const OUTPUT_DIR = process.env.SCRAPE_OUTPUT_DIR ?? path.join(process.cwd(), 'da
 const HEADLESS = (process.env.SCRAPE_HEADLESS ?? 'true').toLowerCase() !== 'false';
 
 const EXCLUDED_PATH_SNIPPETS = ['/elanlar/is-elanlari'];
+const CARD_SELECTOR = '.products-i, [data-testid="product-card"]';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -97,32 +98,48 @@ const parseCategoryFromUrl = (url: string) => {
 
 const scrapeCategoryPage = async (page: Page, categoryUrl: string, pageNumber: number) => {
   const url = pageNumber > 1 ? `${categoryUrl}?page=${pageNumber}` : categoryUrl;
-  await page.goto(url, { waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('.products-i', { timeout: 20_000 });
+  await page.goto(url, { waitUntil: 'networkidle' });
+  await page.waitForSelector(CARD_SELECTOR, { timeout: 45_000 });
 
-  const listings = await page.$$eval('.products-i', (cards) =>
+  const listings = await page.$$eval(CARD_SELECTOR, (cards) =>
     cards
       .map((card) => {
-        const bookmarkEl = card.querySelector<HTMLElement>('.product-bookmarks__link');
-        const tapId = bookmarkEl?.dataset?.adId;
-        const link = card.querySelector<HTMLAnchorElement>('.products-link');
-        const url = link?.href;
-        if (!tapId || !url || !url.includes('/elanlar/')) {
+        const bookmarkEl =
+          card.querySelector<HTMLElement>('.product-bookmarks__link') ??
+          card.querySelector<HTMLElement>('[data-ad-id]');
+        const link =
+          card.querySelector<HTMLAnchorElement>('.products-link') ??
+          card.querySelector<HTMLAnchorElement>('a[href*="/elanlar/"]');
+        const href = link?.href;
+        const tapFromHref = href?.match(/(\d+)(?:\/)?$/)?.[1];
+        const tapId = bookmarkEl?.dataset?.adId ?? bookmarkEl?.getAttribute('data-ad-id') ?? tapFromHref ?? undefined;
+        if (!tapId || !href || !href.includes('/elanlar/')) {
           return null;
         }
-        const title = card.querySelector<HTMLElement>('.products-name')?.textContent?.trim() ?? 'Əlaqədar elan';
-        const priceText = card.querySelector<HTMLElement>('.price-val')?.textContent;
-        const currencyText = card.querySelector<HTMLElement>('.price-cur')?.textContent;
-        const location = card.querySelector<HTMLElement>('.products-created')?.textContent?.trim() ?? undefined;
-        const imageUrl = card.querySelector<HTMLImageElement>('img')?.src;
+        const priceNode =
+          card.querySelector<HTMLElement>('.price-val') ??
+          card.querySelector<HTMLElement>('[data-testid="price"]') ??
+          card.querySelector<HTMLElement>('[itemprop="price"]');
+        const currencyNode =
+          card.querySelector<HTMLElement>('.price-cur') ??
+          card.querySelector<HTMLElement>('[data-testid="currency"]') ??
+          card.querySelector<HTMLElement>('[itemprop="priceCurrency"]');
+        const titleNode =
+          card.querySelector<HTMLElement>('.products-name') ??
+          card.querySelector<HTMLElement>('[data-testid="product-title"]');
+        const locationNode =
+          card.querySelector<HTMLElement>('.products-created') ??
+          card.querySelector<HTMLElement>('[data-testid="location"]');
+        const imageNode = card.querySelector<HTMLImageElement>('img');
+
         return {
           tapId,
-          title,
-          price: priceText ? Number(priceText.replace(/\s+/g, '')) : undefined,
-          currency: currencyText?.trim(),
-          location,
-          url,
-          imageUrl
+          title: titleNode?.textContent?.trim() ?? 'Əlaqədar elan',
+          price: priceNode ? Number(priceNode.textContent?.replace(/\s+/g, '') ?? '') : undefined,
+          currency: currencyNode?.textContent?.trim(),
+          location: locationNode?.textContent?.trim() ?? undefined,
+          url: href,
+          imageUrl: imageNode?.src
         };
       })
       .filter(Boolean)
@@ -319,7 +336,27 @@ const run = async () => {
     userAgent:
       process.env.SCRAPE_USER_AGENT ??
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
-    viewport: { width: 1366, height: 900 }
+    viewport: { width: 1366, height: 900 },
+    locale: 'az-AZ',
+    timezoneId: 'Asia/Baku',
+    permissions: ['geolocation'],
+    geolocation: { latitude: 40.4093, longitude: 49.8671 },
+    extraHTTPHeaders: {
+      'Accept-Language': 'az-AZ,az;q=0.9,tr;q=0.8,en;q=0.7'
+    }
+  });
+
+  await context.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', {
+      get: () => undefined
+    });
+    window.chrome = { runtime: {} };
+    Object.defineProperty(navigator, 'languages', {
+      get: () => ['az-AZ', 'az']
+    });
+    Object.defineProperty(navigator, 'plugins', {
+      get: () => [1, 2, 3, 4]
+    });
   });
 
   try {
