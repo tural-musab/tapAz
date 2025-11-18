@@ -27,11 +27,22 @@ export interface AdminActivityItem {
   linkLabel?: string;
 }
 
+export type ScheduleType = 'daily' | 'weekly' | 'monthly';
+export type CategoryStrategy = 'all' | 'custom';
+export type Weekday = 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat';
+
 export interface AdminNightlyPlanState {
   cronExpression: string;
   timezone: string;
+  scheduleType: ScheduleType;
+  runHour: number;
+  runMinute: number;
+  daysOfWeek: Weekday[];
+  daysOfMonth: number[];
+  categoryStrategy: CategoryStrategy;
   includeCategoryIds: string[];
   excludeCategoryIds: string[];
+  intervalMinutes: number;
   lastUpdatedAt: string;
   updatedBy?: string;
 }

@@ -9,17 +9,25 @@ create table if not exists scheduler_settings (
   cron_expression text not null,
   timezone text not null,
   updated_at timestamptz default now(),
-  updated_by text
+  updated_by text,
+  schedule_type text not null default 'daily',
+  run_hour smallint not null default 2,
+  run_minute smallint not null default 0,
+  days_of_week text[] default '{}'::text[],
+  days_of_month smallint[] default '{}'::smallint[],
+  category_strategy text not null default 'all',
+  interval_minutes integer not null default 5
 );
 
 create table if not exists category_plan (
   category_id text primary key,
   include boolean not null default true,
-  updated_at timestamptz default now()
+  updated_at timestamptz default now(),
+  sort_order integer
 );
 ```
-- `scheduler_settings` cədvəli hazirda yalnız `id = 'nightly'` sətrini istifadə edir.
-- `category_plan` siyahısında `include = true` olan kateqoriyalar aktiv, `include = false` olanlar istisna hesab olunur.
+- `scheduler_settings` cədvəli `schedule_type`, `run_hour:run_minute`, həftəlik və aylıq seçimlər, kateqoriya strategiyası və interval kimi əlavə sütunlarla genişlənib.
+- `category_plan` siyahısında `include = true` olan kateqoriyalar aktiv, `include = false` olanlar istisna hesab olunur, `sort_order` isə xüsusi sıralamanı saxlayır.
 
 ### 2. Ətraf mühit dəyişənləri
 ```
@@ -33,8 +41,8 @@ VERCEL_TOKEN=...
 - `VERCEL_TOKEN` plan5 mərhələsində deployment monitorinqi üçün istifadə olunacaq.
 
 ### 3. Admin API-ləri
-- `GET /api/admin/plan` → `{ plan, source }` obyektini qaytarır (`source = supabase|file`).
-- `POST /api/admin/plan` → body `cronExpression`, `timezone`, `includeCategoryIds`, `excludeCategoryIds` sahələrindən ibarət olmalıdır.
+- `GET /api/admin/plan` → `{ plan, source, categoryQueue }` obyektini qaytarır; `categoryQueue` GitHub Actions workflow-u üçün hazır `tap.az/elanlar/<slug>` URL-lərini ehtiva edir.
+- `POST /api/admin/plan` → body `scheduleType`, `runHour`, `runMinute`, `timezone`, `daysOfWeek/daysOfMonth`, `categoryStrategy`, `includeCategoryIds`, `excludeCategoryIds`, `intervalMinutes` sahələrindən ibarət olmalıdır.
 - `GET /api/admin/scrape` → son 25 job.
 - `POST /api/admin/scrape` → Playwright job trigger.
 
@@ -61,13 +69,18 @@ jobs:
         id: plan
         run: |
           RESPONSE=$(curl -s -H "x-admin-token: ${{ secrets.ADMIN_DASHBOARD_TOKEN }}" https://yourdomain.com/api/admin/plan)
+          CATEGORY_URLS=$(echo $RESPONSE | jq -r '.categoryQueue | map(.url) | @json')
+          if [ -z "$CATEGORY_URLS" ] || [ "$CATEGORY_URLS" = "[]" ]; then
+            echo "No categories to scrape"; exit 0; fi
           echo "PLAN=$RESPONSE" >> $GITHUB_ENV
+          echo "CATEGORY_URLS=$CATEGORY_URLS" >> $GITHUB_OUTPUT
       - name: Trigger scrape job
+        if: steps.plan.outputs.CATEGORY_URLS != ''
         run: |
           curl -X POST \
             -H "x-admin-token: ${{ secrets.ADMIN_DASHBOARD_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d "$(echo $PLAN | jq '{categoryUrls: .plan.includeCategoryIds, selections: [], pageLimit: 2, listingLimit: 120, delayMs: 1500, detailDelayMs: 2200, headless: true}')" \
+            -d "{ \"categoryUrls\": $(echo $PLAN | jq '.categoryQueue | map(.url)'), \"selections\": [], \"pageLimit\": 2, \"listingLimit\": 120, \"delayMs\": 1500, \"detailDelayMs\": 2200, \"headless\": true }" \
             https://yourdomain.com/api/admin/scrape
 ```
 Bu workflow Supabase planını oxuyur və admin API vasitəsilə Playwright job-u sıraya qoyur. Daha sonrakı mərhələdə `VERCEL_TOKEN` istifadə edərək deployment monitorinq addımları əlavə ediləcək (plan5).

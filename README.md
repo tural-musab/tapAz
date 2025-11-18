@@ -54,3 +54,8 @@ Bu dosya yalnız tətbiqin tez istismara alınması üçün minimal istiqamətl�
   1. `Settings → Repository Variables` altında `ADMIN_ENDPOINT=https://your-domain.com` kimi dəyər daxil edin.
   2. `Settings → Secrets` altında `ADMIN_DASHBOARD_TOKEN` secret-i təyin edin (UI/cron üçün eyni uzun token).
   3. Zərurət olduqda `workflow_dispatch` ilə manuel trigger edib job loglarını yoxlayın.
+
+### Planlaşdırıcı parametrləri
+- Scheduler default olaraq hər gün 02:00 Bakı vaxtında işləyir, amma UI-da `Hər gün`, `Həftəlik` və `Aylıq` rejimlərini seçib saatı dəyişmək mümkündür; həftəlik rejimdə konkret günləri, aylıq rejimdə isə 1–31 arası istənilən kombinasiyanı qeyd edə bilərsiniz.
+- Kateqoriya strateqiyası `Bütün kateqoriyalar` və `Xüsusi sıra` rejimlərini dəstəkləyir: hamısı rejimində istisnalarla birlikdə ardıcıl toplama aktivdir, xüsusi rejimdə isə drag-free düymələrlə sıra qurulur.
+- “Kateqoriyalararası gecikmə” sahəsi Playwright job-larının kateqoriyalar arasında neçə dəqiqə gözləyəcəyini təyin edir (default 5 dəqiqə), beləliklə Tap.az-a həddindən artıq yük düşməsinin qarşısı alınır.

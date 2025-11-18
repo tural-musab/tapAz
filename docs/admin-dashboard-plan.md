@@ -4,7 +4,7 @@ Bu sənəd Tap.az analitika layihəsi üçün hazırlanacaq admin panelinin mər
 
 ### 1. İstifadəçi Ssenariləri
 1. **Manual toplama:** Admin kateqoriya/subkateqoriya seçir, limitləri (səhifə, elan, gecikmə) daxil edir, “İndi topla” düyməsi ilə Playwright skriptini işə salır, nəticəni status panelində izləyir.
-2. **Gecə planı:** Admin “Gecə planına əlavə et” blokunda hansı kateqoriyaların hər gecə çəkiləcəyini, hansılarının istisna ediləcəyini seçir. Bu seçim Supabase-də saxlanılır və cron job həmin plana əsasən işləyir.
+2. **Planlaşdırılmış toplama:** Admin scheduler blokunda tezliyi (gündəlik/həftəlik/aylıq), saatı, timezone-u və kateqoriya strategiyasını seçir; həm bütün kateqoriyaları ardıcıl şəkildə interval ilə toplamaq, həm də xüsusi sıra qurmaq mümkündür. Bu seçim Supabase-də saxlanılır və cron job həmin plana əsasən işləyir.
 3. **Planı yeniləmə:** “İş elanları” və ya digər kateqoriyaları istisna etmək üçün toggle-lar. İstisna siyahısı serverdə saxlanılır və həm UI, həm də backend toplayıcısı tərəfindən nəzərə alınır.
 4. **Monitorinq:** Son snapshot, işləyən job, Supabase yazma statusu, GitHub/Vercel deploy nəticələri UI-da görünür.
 
@@ -13,15 +13,15 @@ Bu sənəd Tap.az analitika layihəsi üçün hazırlanacaq admin panelinin mər
 - Bölmələr:
   1. **Overview**: son toplama vaxtı, son snapshot, Supabase yazma statusu.
   2. **Manual Collector**: form (kateqoriya ağacı, limit input-ları, checkbox-lar, “İndi topla” düyməsi).
-  3. **Night Scheduler**: planlanmış kateqoriya siyahısı, include/exclude toggle-lar, cron vaxt məlumatı.
+  3. **Planlaşdırıcı**: tezlik + zaman seçicisi, kateqoriya rejimi (hamısı/xüsusi), ardıcıllıq və interval parametrləri.
   4. **Activity Log**: GitHub push/Vercel deploy linkləri, Playwright job logları.
 
 ### 3. Data və API Layihəsi
 - **API Route-lar**:
   - `POST /api/admin/scrape`: UI form məlumatını qəbul edib child process (Playwright) işə salır. Cavabda jobId qaytarır.
   - `GET /api/admin/scrape/:jobId`: job statusu (pending/running/done/error) + log path.
-  - `GET /api/admin/plan`: Supabase-dən gecə planını oxuyur.
-  - `POST /api/admin/plan`: plan yeniləmələrini Supabase-ə yazır (`category_exclusions`, `scheduled_categories`).
+  - `GET /api/admin/plan`: Supabase və ya fayldakı planı + `categoryQueue` (hazır URL siyahısı) qaytarır.
+  - `POST /api/admin/plan`: yeni scheduler modelini (`scheduleType`, `runHour`, `daysOfWeek/daysOfMonth`, `categoryStrategy`, `intervalMinutes`) qəbul edir və saxlayır.
   - `GET /api/admin/meta`: son snapshot, Supabase sync vaxtı, mövcud env parametrləri.
 - **State Saxlama**:
   - `supabase.category_plan` (id, category_slug, include, priority, nightly_limit).
@@ -54,8 +54,8 @@ Bu plan əsasında növbəti addım admin route skeletini və əsas komponentlə
 - [x] GitHub Actions → Vercel monitorinq addımları (plan5) – 2025-11-17
 
 ### 8. Supabase və Cron Scaffoldu
-- `scheduler_settings` cədvəli: `id text primary key`, `cron_expression text`, `timezone text`, `updated_at timestamptz`, `updated_by text`.
-- `category_plan` cədvəli: `category_id text primary key`, `include boolean default true`, `updated_at timestamptz`.
+- `scheduler_settings` cədvəli: `id text primary key`, `cron_expression text`, `timezone text`, `schedule_type`, `run_hour`, `run_minute`, `days_of_week`, `days_of_month`, `category_strategy`, `interval_minutes`, `updated_at`, `updated_by`.
+- `category_plan` cədvəli: `category_id text primary key`, `include boolean default true`, `sort_order integer`, `updated_at timestamptz`.
 - Admin paneli `GET/POST /api/admin/plan` route-ları vasitəsilə bu cədvəlləri oxuyur/yazır; Supabase mövcud olmadıqda məlumat `data/admin-nightly-plan.json` faylına saxlanılır.
 - Cron scaffoldu üçün nümunə workflow (GitHub Actions):
   ```yaml
@@ -69,15 +69,22 @@ Bu plan əsasında növbəti addım admin route skeletini və əsas komponentlə
         - uses: actions/checkout@v4
         - run: npm ci
         - name: Fetch nightly plan
+          id: plan
           run: |
             PLAN=$(curl -s -H "x-admin-token: ${{ secrets.ADMIN_DASHBOARD_TOKEN }}" https://<domain>/api/admin/plan)
+            CATEGORY_URLS=$(echo "$PLAN" | jq -r '.categoryQueue | map(.url) | @json')
+            if [ -z "$CATEGORY_URLS" ] || [ "$CATEGORY_URLS" = "[]" ]; then
+              echo "No categories to scrape"; exit 0; fi
             echo "PLAN=$PLAN" >> $GITHUB_ENV
+            echo "CATEGORY_URLS=$CATEGORY_URLS" >> $GITHUB_OUTPUT
         - name: Trigger scrape job
+          if: steps.plan.outputs.CATEGORY_URLS != ''
           run: |
+            CATEGORY_URLS='${{ steps.plan.outputs.CATEGORY_URLS }}'
             curl -X POST \
               -H "x-admin-token: ${{ secrets.ADMIN_DASHBOARD_TOKEN }}" \
               -H "Content-Type: application/json" \
-              -d "{ \"categoryUrls\": $(echo $PLAN | jq '.plan.includeCategoryIds'), \"pageLimit\": 2, \"listingLimit\": 120, \"delayMs\": 1500, \"detailDelayMs\": 2200, \"headless\": true }" \
+              -d "{ \"categoryUrls\": ${CATEGORY_URLS}, \"pageLimit\": 2, \"listingLimit\": 120, \"delayMs\": 1500, \"detailDelayMs\": 2200, \"headless\": true }" \
               https://<domain>/api/admin/scrape
   ```
 - `VERCEL_TOKEN` gələcək mərhələdə build monitorinqi üçün istifadə olunacaq; hazırda `.env.local` daxilində saxlanılır.

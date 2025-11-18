@@ -51,16 +51,24 @@ jobs:
           )
 
           echo "${RESPONSE}" > plan.json
-          CATEGORY_URLS=$(jq -r '.plan.includeCategoryIds | @json' plan.json)
+          CATEGORY_URLS=$(jq -r '.categoryQueue | map(.url) | @json' plan.json)
 
           if [ -z "${CATEGORY_URLS}" ] || [ "${CATEGORY_URLS}" = "null" ]; then
-            echo "Plan cavabında includeCategoryIds tapılmadı." >&2
+            echo "Plan cavabında categoryQueue tapılmadı." >&2
             exit 1
           fi
 
+          if [ "${CATEGORY_URLS}" = "[]" ]; then
+            echo "Plan kateqoriya qaytarmadı, job atlanır."
+            echo "shouldSkip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "shouldSkip=false" >> "$GITHUB_OUTPUT"
           echo "categoryUrls=${CATEGORY_URLS}" >> "$GITHUB_OUTPUT"
 
       - name: Trigger Playwright scrape
+        if: steps.plan.outputs.shouldSkip != 'true'
         env:
           ADMIN_ENDPOINT: ${{ env.ADMIN_ENDPOINT }}
           ADMIN_TOKEN: ${{ env.ADMIN_TOKEN }}
@@ -79,7 +87,7 @@ jobs:
             "${API_URL}"
 
       - name: Upload latest snapshot artifact
-        if: always() && hashFiles('data/snapshots/*.json') != ''
+        if: steps.plan.outputs.shouldSkip != 'true' && always() && hashFiles('data/snapshots/*.json') != ''
         uses: actions/upload-artifact@v4
         with:
           name: tapaz-snapshot
