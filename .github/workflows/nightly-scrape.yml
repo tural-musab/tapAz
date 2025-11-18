@@ -22,10 +22,9 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
-          cache-dependency-path: tapaz-analytics/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        working-directory: tapaz-analytics
         run: npm ci
 
       - name: Fetch nightly plan
@@ -33,7 +32,6 @@ jobs:
         env:
           ADMIN_ENDPOINT: ${{ env.ADMIN_ENDPOINT }}
           ADMIN_TOKEN: ${{ env.ADMIN_TOKEN }}
-        working-directory: tapaz-analytics
         run: |
           if [ -z "${ADMIN_ENDPOINT}" ]; then
             echo "ADMIN_ENDPOINT GitHub var dəyəri təyin edilməyib." >&2
@@ -67,7 +65,6 @@ jobs:
         env:
           ADMIN_ENDPOINT: ${{ env.ADMIN_ENDPOINT }}
           ADMIN_TOKEN: ${{ env.ADMIN_TOKEN }}
-        working-directory: tapaz-analytics
         run: |
           API_URL="${ADMIN_ENDPOINT%/}/api/admin/scrape"
           CATEGORY_URLS='${{ steps.plan.outputs.categoryUrls }}'
@@ -97,5 +94,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tapaz-snapshot
-          path: tapaz-analytics/data/snapshots/*.json
+          path: data/snapshots/*.json
           retention-days: 7
