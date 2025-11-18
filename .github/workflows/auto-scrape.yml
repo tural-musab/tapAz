@@ -1,4 +1,4 @@
-name: Nightly Tap.az Scraper
+name: Auto Tap.az Scraper
 
 on:
   schedule:
