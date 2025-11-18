@@ -1,15 +1,17 @@
 {
-  "cronExpression": "0 2 * * *",
+  "cronExpression": "55 12 * * *",
   "timezone": "Asia/Baku",
   "scheduleType": "daily",
-  "runHour": 2,
-  "runMinute": 0,
+  "runHour": 12,
+  "runMinute": 55,
   "daysOfWeek": [],
   "daysOfMonth": [],
-  "categoryStrategy": "all",
-  "includeCategoryIds": [],
+  "categoryStrategy": "custom",
+  "includeCategoryIds": [
+    "electronics"
+  ],
   "excludeCategoryIds": [],
   "intervalMinutes": 5,
-  "lastUpdatedAt": "2025-11-17T00:00:00.000Z",
-  "updatedBy": "bootstrap"
+  "lastUpdatedAt": "2025-11-18T08:53:13.603Z",
+  "updatedBy": "disabled"
 }

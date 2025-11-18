@@ -67,24 +67,26 @@ jobs:
           echo "shouldSkip=false" >> "$GITHUB_OUTPUT"
           echo "categoryUrls=${CATEGORY_URLS}" >> "$GITHUB_OUTPUT"
 
-      - name: Trigger Playwright scrape
+      - name: Run Playwright collector
         if: steps.plan.outputs.shouldSkip != 'true'
         env:
-          ADMIN_ENDPOINT: ${{ env.ADMIN_ENDPOINT }}
-          ADMIN_TOKEN: ${{ env.ADMIN_TOKEN }}
+          SCRAPE_CATEGORY_URLS: ${{ steps.plan.outputs.categoryUrls }}
+          SCRAPE_MAX_PAGES: ${{ vars.SCRAPE_MAX_PAGES || '2' }}
+          SCRAPE_MAX_LISTINGS: ${{ vars.SCRAPE_MAX_LISTINGS || '120' }}
+          SCRAPE_DELAY_MS: ${{ vars.SCRAPE_DELAY_MS || '1500' }}
+          SCRAPE_DETAIL_DELAY_MS: ${{ vars.SCRAPE_DETAIL_DELAY_MS || '2200' }}
+          SCRAPE_HEADLESS: 'true'
         run: |
-          API_URL="${ADMIN_ENDPOINT%/}/api/admin/scrape"
-          CATEGORY_URLS='${{ steps.plan.outputs.categoryUrls }}'
+          npx playwright install --with-deps chromium
+          npx tsx scripts/tapazCollector.playwright.ts
 
-          echo '{"categoryUrls":[],"selections":[],"pageLimit":2,"listingLimit":120,"delayMs":1500,"detailDelayMs":2200,"headless":true}' > payload.json
-
-          jq --argjson urls "${CATEGORY_URLS}" '.categoryUrls = $urls' payload.json > payload-final.json
-
-          curl -sfL -X POST \
-            -H "Content-Type: application/json" \
-            -H "x-admin-token: ${ADMIN_TOKEN}" \
-            --data @payload-final.json \
-            "${API_URL}"
+      - name: Upload snapshot to Supabase
+        if: steps.plan.outputs.shouldSkip != 'true'
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          npx tsx scripts/uploadSnapshotToSupabase.ts gha-${{ github.run_id }}
 
       - name: Upload latest snapshot artifact
         if: steps.plan.outputs.shouldSkip != 'true' && always() && hashFiles('data/snapshots/*.json') != ''

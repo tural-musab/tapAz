@@ -53,7 +53,8 @@ Bu dosya yalnız tətbiqin tez istismara alınması üçün minimal istiqamətl�
 - İşə salmaq üçün
   1. `Settings → Repository Variables` altında `ADMIN_ENDPOINT=https://your-domain.com` kimi dəyər daxil edin.
   2. `Settings → Secrets` altında `ADMIN_DASHBOARD_TOKEN` secret-i təyin edin (UI/cron üçün eyni uzun token).
-  3. Zərurət olduqda `workflow_dispatch` ilə manuel trigger edib job loglarını yoxlayın.
+  3. Playwright job-u GitHub runner-da çalışdığı üçün `SUPABASE_URL` və `SUPABASE_SERVICE_ROLE_KEY` secret-lərini də əlavə edin; workflow nəticə olaraq `scripts/uploadSnapshotToSupabase.ts` vasitəsilə snapshot-ı Supabase-ə yerləşdirir.
+  4. Zərurət olduqda `workflow_dispatch` ilə manuel trigger edib həm Playwright loglarını, həm də Supabase yazma nəticəsini yoxlayın.
 
 ### Planlaşdırıcı parametrləri
 - Scheduler default olaraq hər gün 02:00 Bakı vaxtında işləyir, amma UI-da `Hər gün`, `Həftəlik` və `Aylıq` rejimlərini seçib saatı dəyişmək mümkündür; həftəlik rejimdə konkret günləri, aylıq rejimdə isə 1–31 arası istənilən kombinasiyanı qeyd edə bilərsiniz.
