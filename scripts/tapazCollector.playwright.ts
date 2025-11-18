@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import { chromium, type BrowserContext, type Page } from 'playwright';
+import { chromium, type BrowserContext, type Page, type PageGotoOptions } from 'playwright';
 
 const PROGRESS_PREFIX = '__PROGRESS__';
 const reportProgress = (payload: Record<string, unknown>) => {
@@ -96,9 +96,30 @@ const parseCategoryFromUrl = (url: string) => {
   }
 };
 
+const navigateToCategoryPage = async (page: Page, url: string) => {
+  const strategies: PageGotoOptions[] = [
+    { waitUntil: 'networkidle', timeout: 60_000 },
+    { waitUntil: 'domcontentloaded', timeout: 60_000 }
+  ];
+
+  let lastError: unknown;
+
+  for (const options of strategies) {
+    try {
+      await page.goto(url, options);
+      return;
+    } catch (error) {
+      lastError = error;
+      await page.waitForTimeout(2000);
+    }
+  }
+
+  throw lastError;
+};
+
 const scrapeCategoryPage = async (page: Page, categoryUrl: string, pageNumber: number) => {
   const url = pageNumber > 1 ? `${categoryUrl}?page=${pageNumber}` : categoryUrl;
-  await page.goto(url, { waitUntil: 'networkidle' });
+  await navigateToCategoryPage(page, url);
   await page.waitForSelector(CARD_SELECTOR, { timeout: 45_000 });
 
   const listings = await page.$$eval(CARD_SELECTOR, (cards) =>
@@ -220,6 +241,12 @@ const scrapeListingDetail = async (page: Page, url: string): Promise<ListingDeta
 
 const scrapeCategory = async (context: BrowserContext, categoryUrl: string) => {
   const page = await context.newPage();
+  try {
+    await navigateToCategoryPage(page, 'https://tap.az/');
+    await page.waitForTimeout(2000);
+  } catch {
+    // warmup failures shouldn't block the rest
+  }
   const aggregated: BaseListingCard[] = [];
 
   for (let currentPage = 1; currentPage <= MAX_PAGES_PER_CATEGORY; currentPage += 1) {
@@ -362,8 +389,8 @@ const run = async () => {
   try {
     const categoryCards: BaseListingCard[] = [];
 
-    for (const [index, categoryUrl] of CATEGORY_URLS.entries()) {
-      console.log(`\n📂 Kateqoriya: ${categoryUrl}`);
+  for (const [index, categoryUrl] of CATEGORY_URLS.entries()) {
+    console.log(`\n📂 Kateqoriya: ${categoryUrl}`);
       const cards = await scrapeCategory(context, categoryUrl);
       console.log(`   ${cards.length} kart oxundu.`);
       categoryCards.push(...cards);
