@@ -25,8 +25,23 @@ const findLatestSnapshot = async (): Promise<string> => {
 
 const main = async () => {
   const snapshotArg = process.argv[2];
-  const jobId = process.argv[3] ?? `gha-${Date.now()}`;
-  const snapshotPath = snapshotArg ? path.resolve(snapshotArg) : await findLatestSnapshot();
+  let jobIdArg = process.argv[3];
+
+  let snapshotPath: string;
+  if (snapshotArg) {
+    try {
+      const resolved = path.resolve(snapshotArg);
+      await fs.stat(resolved);
+      snapshotPath = resolved;
+    } catch {
+      jobIdArg = snapshotArg;
+      snapshotPath = await findLatestSnapshot();
+    }
+  } else {
+    snapshotPath = await findLatestSnapshot();
+  }
+
+  const jobId = jobIdArg ?? `gha-${Date.now()}`;
 
   console.log(`Snapshot Supabase-ə göndərilir: ${snapshotPath}`);
   const result = await uploadSnapshotToSupabase(jobId, snapshotPath);
