@@ -166,6 +166,14 @@ const scrapeCategoryPage = async (page: Page, categoryUrl: string, pageNumber: n
       .filter(Boolean)
   );
 
+  if (listings.length === 0) {
+    const pageHtml = await page.content();
+    console.warn(
+      `⚠️  ${categoryUrl} üçün məhsul kartı tapılmadı. Cari URL: ${page.url()} · HTML sətir uzunluğu: ${pageHtml.length}`
+    );
+    console.warn(pageHtml.slice(0, 500));
+  }
+
   return listings as BaseListingCard[];
 };
 
