@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { queryListings } from '@/lib/data';
+import { canUseSupabaseListings, queryListingsFromSupabase } from '@/lib/dataSupabase';
 import { ListingFilters, SortField } from '@/lib/types';
 import { SORT_FIELDS } from '@/lib/constants';
 
@@ -40,13 +41,25 @@ export async function GET(request: Request) {
   const page = parseNumber(searchParams.get('page')) ?? 1;
   const pageSize = parseNumber(searchParams.get('pageSize')) ?? undefined;
 
-  const result = queryListings({
+  const queryPayload = {
     filters,
     sortField,
     sortDirection,
     page,
     pageSize
-  });
+  } as const;
+
+  let result;
+  if (canUseSupabaseListings()) {
+    try {
+      result = await queryListingsFromSupabase(queryPayload);
+    } catch (error) {
+      console.warn('Supabase listings oxunmadı, fallback aktivləşir:', error);
+      result = queryListings(queryPayload);
+    }
+  } else {
+    result = queryListings(queryPayload);
+  }
 
   return NextResponse.json({
     items: result.items,
@@ -56,4 +69,3 @@ export async function GET(request: Request) {
     stats: result.stats
   });
 }
-

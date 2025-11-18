@@ -24,7 +24,7 @@ type ListingsRow = {
   price: number | null;
   currency: string | null;
   location: string | null;
-  url: string | null;
+  listing_url: string | null;
   image_url: string | null;
   category_slug: string | null;
   subcategory_slug: string | null;
@@ -132,7 +132,7 @@ const mapRowToListing = (row: ListingsRow): Listing => ({
   postedAt: row.posted_at_iso ?? row.fetched_at ?? new Date().toISOString(),
   viewCount: row.view_count ?? 0,
   favoriteCount: row.favorites_count ?? 0,
-  listingUrl: row.url ?? '/',
+  listingUrl: row.listing_url ?? '/',
   imageUrl: row.image_url ?? undefined
 });
 
@@ -221,7 +221,7 @@ export const queryListingsFromSupabase = async (
     price,
     currency,
     location,
-    url,
+    listing_url,
     image_url,
     category_slug,
     subcategory_slug,

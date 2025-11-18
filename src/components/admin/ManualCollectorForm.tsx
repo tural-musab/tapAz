@@ -118,8 +118,15 @@ export const ManualCollectorForm = ({ categories, authToken }: ManualCollectorFo
     const categoryUrls = Array.from(
       new Set(
         selections.map((selection) => {
-          const base = `https://tap.az/elanlar/${selection.categoryId}`;
-          return selection.subcategoryId ? `${base}/${selection.subcategoryId}` : base;
+          const category = categoryMap.get(selection.categoryId);
+          const categorySlug = category?.slug ?? category?.id ?? selection.categoryId;
+          const base = `https://tap.az/elanlar/${categorySlug}`;
+          if (!selection.subcategoryId) {
+            return base;
+          }
+          const subSlug =
+            category?.subcategories.find((sub) => sub.id === selection.subcategoryId)?.slug ?? selection.subcategoryId;
+          return `${base}/${subSlug}`;
         })
       )
     );
@@ -130,7 +137,7 @@ export const ManualCollectorForm = ({ categories, authToken }: ManualCollectorFo
         : `${categoryCounter.size} kateqoriya · ${selections.filter((item) => item.subcategoryId).length} subkateqoriya`;
 
     return { selections, categoryUrls, summary };
-  }, [categories, selectedCategories, selectedSubcategories]);
+  }, [categories, categoryMap, selectedCategories, selectedSubcategories]);
 
   const buildAuthHeaders = useCallback(
     (options?: { json?: boolean }) => {
