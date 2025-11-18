@@ -68,17 +68,7 @@ jobs:
           API_URL="${ADMIN_ENDPOINT%/}/api/admin/scrape"
           CATEGORY_URLS='${{ steps.plan.outputs.categoryUrls }}'
 
-          cat <<'EOF' > payload.json
-          {
-            "categoryUrls": [],
-            "selections": [],
-            "pageLimit": 2,
-            "listingLimit": 120,
-            "delayMs": 1500,
-            "detailDelayMs": 2200,
-            "headless": true
-          }
-          EOF
+          echo '{"categoryUrls":[],"selections":[],"pageLimit":2,"listingLimit":120,"delayMs":1500,"detailDelayMs":2200,"headless":true}' > payload.json
 
           jq --argjson urls "${CATEGORY_URLS}" '.categoryUrls = $urls' payload.json > payload-final.json
 
