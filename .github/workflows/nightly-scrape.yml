@@ -70,7 +70,7 @@ jobs:
 
           cat <<'EOF' > payload.json
           {
-            "categoryUrls": PLACEHOLDER,
+            "categoryUrls": [],
             "selections": [],
             "pageLimit": 2,
             "listingLimit": 120,
