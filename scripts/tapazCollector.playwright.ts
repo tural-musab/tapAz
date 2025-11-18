@@ -98,7 +98,7 @@ const parseCategoryFromUrl = (url: string) => {
 const scrapeCategoryPage = async (page: Page, categoryUrl: string, pageNumber: number) => {
   const url = pageNumber > 1 ? `${categoryUrl}?page=${pageNumber}` : categoryUrl;
   await page.goto(url, { waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('.products-i', { timeout: 12_000 });
+  await page.waitForSelector('.products-i', { timeout: 20_000 });
 
   const listings = await page.$$eval('.products-i', (cards) =>
     cards
@@ -393,4 +393,3 @@ run().catch((error) => {
   console.error('❌  Toplayıcıda gözlənilməyən xəta:', error);
   process.exitCode = 1;
 });
-
