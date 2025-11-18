@@ -17,6 +17,9 @@ npm run collect:playwright
 
 # Snapshot nəticəsini UI datasına yazmaq:
 npm run data:sync
+
+# Supabase mühit dəyişənləri üçün nümunə fayl
+cp .env.local.example .env.local && edit
 ```
 
 ### Qovluqlar
@@ -28,6 +31,7 @@ npm run data:sync
 - `scripts/tapazCollector.playwright.ts` – Cloudflare bloklarını brauzer kimi keçərək real elanları yığan skript
 - `scripts/snapshotToDataset.ts` – Son snapshot faylını `src/data/listings.json` formatına çevirən skript
 - `scrape.env.example` – Playwright toplayıcısı üçün nümunə mühit dəyişənləri
+- `.env.local.example` – Supabase, admin token və digər server-side parametrlər üçün şablon
 
 ### Ətraflı sənədlər
 Kök `README.md` sənədində:
@@ -38,3 +42,15 @@ Kök `README.md` sənədində:
 5. Supabase gecə planı və cron scaffoldu (`docs/nightly-plan.md`)
 
 Bu dosya yalnız tətbiqin tez istismara alınması üçün minimal istiqamətləndirmə verir.
+
+### Snapshot → Demo dataset axını
+1. `npm run collect:playwright` (və ya admin panelindən job) işlədildikdə `data/snapshots/` qovluğunda `tapaz-live-*.json` faylı yaranır.
+2. Lokal demo dataset-in yenilənməsi üçün hər yeni snapshotdan sonra `npm run data:sync` işlədin; skript ən son faylı oxuyub `src/data/listings.json`-u yeniləyir.
+3. Supabase xidmət açarları `.env.local` daxilində mövcud olduqda admin paneli və `/api/listings` endpoint-i avtomatik `scraped_listings` cədvəlindən oxuyacaq, əks halda bu yenilənmiş JSON fallback kimi istifadə olunur.
+
+### GitHub Actions gece planı
+- `.github/workflows/nightly-scrape.yml` workflow-u Bakı vaxtı ilə 02:00-da işləyir və `ADMIN_ENDPOINT` repo var-i ilə göstərilən hostda `/api/admin/plan` → `/api/admin/scrape` ardıcıllığını çağırır.
+- İşə salmaq üçün
+  1. `Settings → Repository Variables` altında `ADMIN_ENDPOINT=https://your-domain.com` kimi dəyər daxil edin.
+  2. `Settings → Secrets` altında `ADMIN_DASHBOARD_TOKEN` secret-i təyin edin (UI/cron üçün eyni uzun token).
+  3. Zərurət olduqda `workflow_dispatch` ilə manuel trigger edib job loglarını yoxlayın.

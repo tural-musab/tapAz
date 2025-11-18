@@ -1,0 +1,101 @@
+name: Nightly Tap.az Scraper
+
+on:
+  schedule:
+    - cron: '0 22 * * *' # UTC 22:00 ≈ Bakı 02:00
+  workflow_dispatch:
+
+env:
+  ADMIN_ENDPOINT: ${{ vars.ADMIN_ENDPOINT }}
+  ADMIN_TOKEN: ${{ secrets.ADMIN_DASHBOARD_TOKEN }}
+
+jobs:
+  nightly-scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: tapaz-analytics/package-lock.json
+
+      - name: Install dependencies
+        working-directory: tapaz-analytics
+        run: npm ci
+
+      - name: Fetch nightly plan
+        id: plan
+        env:
+          ADMIN_ENDPOINT: ${{ env.ADMIN_ENDPOINT }}
+          ADMIN_TOKEN: ${{ env.ADMIN_TOKEN }}
+        working-directory: tapaz-analytics
+        run: |
+          if [ -z "${ADMIN_ENDPOINT}" ]; then
+            echo "ADMIN_ENDPOINT GitHub var dəyəri təyin edilməyib." >&2
+            exit 1
+          fi
+
+          if [ -z "${ADMIN_TOKEN}" ]; then
+            echo "ADMIN_DASHBOARD_TOKEN secret-i təyin edilməyib." >&2
+            exit 1
+          fi
+
+          API_URL="${ADMIN_ENDPOINT%/}/api/admin/plan"
+          echo "Plan ${API_URL} endpoint-indən oxunur..."
+          RESPONSE=$(
+            curl -sfL \
+              -H "x-admin-token: ${ADMIN_TOKEN}" \
+              "${API_URL}"
+          )
+
+          echo "${RESPONSE}" > plan.json
+          CATEGORY_URLS=$(jq -r '.plan.includeCategoryIds | @json' plan.json)
+
+          if [ -z "${CATEGORY_URLS}" ] || [ "${CATEGORY_URLS}" = "null" ]; then
+            echo "Plan cavabında includeCategoryIds tapılmadı." >&2
+            exit 1
+          fi
+
+          echo "categoryUrls=${CATEGORY_URLS}" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger Playwright scrape
+        env:
+          ADMIN_ENDPOINT: ${{ env.ADMIN_ENDPOINT }}
+          ADMIN_TOKEN: ${{ env.ADMIN_TOKEN }}
+        working-directory: tapaz-analytics
+        run: |
+          API_URL="${ADMIN_ENDPOINT%/}/api/admin/scrape"
+          CATEGORY_URLS='${{ steps.plan.outputs.categoryUrls }}'
+
+          cat <<'EOF' > payload.json
+          {
+            "categoryUrls": PLACEHOLDER,
+            "selections": [],
+            "pageLimit": 2,
+            "listingLimit": 120,
+            "delayMs": 1500,
+            "detailDelayMs": 2200,
+            "headless": true
+          }
+          EOF
+
+          jq --argjson urls "${CATEGORY_URLS}" '.categoryUrls = $urls' payload.json > payload-final.json
+
+          curl -sfL -X POST \
+            -H "Content-Type: application/json" \
+            -H "x-admin-token: ${ADMIN_TOKEN}" \
+            --data @payload-final.json \
+            "${API_URL}"
+
+      - name: Upload latest snapshot artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tapaz-snapshot
+          path: tapaz-analytics/data/snapshots/*.json
+          retention-days: 7

@@ -11,9 +11,23 @@ import {
   SortField
 } from './types';
 
-const categories: Category[] = (categoriesDataset as Category[]).filter(
-  (category) => !EXCLUDED_CATEGORY_IDS.includes(category.id)
-);
+const categories: Category[] = (categoriesDataset as Category[])
+  .filter((category) => !EXCLUDED_CATEGORY_IDS.includes(category.id))
+  .map((category) => ({
+    ...category,
+    slug: category.slug ?? category.id,
+    subcategories: category.subcategories.map((sub) => ({
+      ...sub,
+      slug: sub.slug ?? sub.id
+    }))
+  }));
+
+const categoriesBySlug = new Map<string, Category>();
+categories.forEach((category) => {
+  if (category.slug) {
+    categoriesBySlug.set(category.slug, category);
+  }
+});
 
 const listings: Listing[] = listingsDataset as Listing[];
 
@@ -22,9 +36,32 @@ export const getCategories = (): Category[] => categories;
 export const getCategoryById = (id?: string): Category | undefined =>
   categories.find((category) => category.id === id);
 
+export const getCategorySlugById = (categoryId?: string) => getCategoryById(categoryId)?.slug ?? categoryId;
+
+export const getCategoryIdBySlug = (slug?: string) => {
+  if (!slug) return undefined;
+  return categoriesBySlug.get(slug)?.id ?? slug;
+};
+
 export const getSubcategories = (categoryId?: string) => {
   const category = getCategoryById(categoryId);
   return category?.subcategories ?? [];
+};
+
+export const getSubcategorySlugById = (categoryId?: string, subcategoryId?: string) => {
+  if (!categoryId || !subcategoryId) return subcategoryId;
+  const category = getCategoryById(categoryId);
+  const sub = category?.subcategories.find((item) => item.id === subcategoryId);
+  return sub?.slug ?? subcategoryId;
+};
+
+export const getSubcategoryIdBySlug = (categorySlug?: string, subcategorySlug?: string) => {
+  if (!subcategorySlug) return undefined;
+  const category =
+    (categorySlug ? categoriesBySlug.get(categorySlug) : undefined) ??
+    categories.find((item) => item.subcategories.some((sub) => sub.slug === subcategorySlug));
+  const sub = category?.subcategories.find((item) => item.slug === subcategorySlug || item.id === subcategorySlug);
+  return sub?.id ?? subcategorySlug;
 };
 
 const applyFilters = (items: Listing[], filters: ListingFilters): Listing[] =>
@@ -138,4 +175,3 @@ export const queryListings = (options: Partial<ListingQueryOptions>): ListingQue
     stats
   };
 };
-

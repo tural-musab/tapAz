@@ -2,11 +2,13 @@ export type SellerType = 'store' | 'individual';
 
 export interface Subcategory {
   id: string;
+  slug?: string;
   name: string;
 }
 
 export interface Category {
   id: string;
+  slug?: string;
   name: string;
   note?: string;
   subcategories: Subcategory[];
@@ -21,7 +23,7 @@ export interface Listing {
   subcategoryId: string;
   isNew: boolean;
   price: number;
-  currency: 'AZN';
+  currency: string;
   sellerType: SellerType;
   sellerName: string;
   sellerHandle?: string;
@@ -72,4 +74,3 @@ export interface AggregateStats {
   freshestListing?: Listing;
   topStores: Array<{ sellerName: string; totalViews: number; listingCount: number }>;
 }
-
