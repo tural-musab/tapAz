@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import { chromium, type BrowserContext, type Page, type PageGotoOptions } from 'playwright';
+import { chromium, type BrowserContext, type Page } from 'playwright';
 
 const PROGRESS_PREFIX = '__PROGRESS__';
 const reportProgress = (payload: Record<string, unknown>) => {
@@ -98,8 +98,10 @@ const parseCategoryFromUrl = (url: string) => {
   }
 };
 
+type GotoStrategy = { waitUntil: 'networkidle' | 'domcontentloaded'; timeout: number };
+
 const navigateToCategoryPage = async (page: Page, url: string) => {
-  const strategies: PageGotoOptions[] = [
+  const strategies: GotoStrategy[] = [
     { waitUntil: 'networkidle', timeout: 60_000 },
     { waitUntil: 'domcontentloaded', timeout: 60_000 }
   ];
