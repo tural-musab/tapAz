@@ -395,10 +395,11 @@ const run = async () => {
   });
 
   await context.addInitScript(() => {
+    const globalObj: typeof window & { chrome?: unknown } = globalThis as never;
     Object.defineProperty(navigator, 'webdriver', {
       get: () => undefined
     });
-    window.chrome = { runtime: {} };
+    globalObj.chrome = { runtime: {} };
     Object.defineProperty(navigator, 'platform', {
       get: () => 'Linux x86_64'
     });
