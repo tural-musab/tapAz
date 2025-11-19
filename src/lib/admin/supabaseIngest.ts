@@ -132,6 +132,24 @@ interface ListingInfoRow {
   price_current: number | null;
 }
 
+interface ListingDailyStatsPayload {
+  listing_id: string;
+  snapshot_date: string;
+  views_total: number;
+  favorites_count: number;
+  price: number | null;
+  scraped_at: string;
+  job_id: string;
+}
+
+interface ListingPriceChangePayload {
+  listing_id: string;
+  old_price: number | null;
+  new_price: number | null;
+  changed_at: string;
+  job_id: string;
+}
+
 interface ListingUpsertPayload {
   remote_id: string;
   title: string | null;
@@ -273,21 +291,22 @@ const upsertDailyStats = async (
   snapshotISO: string,
   jobId: string
 ) => {
-  const payloads = rows
-    .map((row) => {
-      const listing = listingMap.get(row.tap_id);
-      if (!listing) return null;
-      return {
-        listing_id: listing.id,
-        snapshot_date: snapshotDate,
-        views_total: row.view_count ?? 0,
-        favorites_count: row.favorites_count ?? 0,
-        price: row.price ?? listing.price_current ?? null,
-        scraped_at: row.fetched_at ?? snapshotISO,
-        job_id: jobId
-      };
-    })
-    .filter((item): item is Record<string, unknown> => Boolean(item));
+  const payloads: ListingDailyStatsPayload[] = rows.reduce((acc: ListingDailyStatsPayload[], row) => {
+    const listing = listingMap.get(row.tap_id);
+    if (!listing) {
+      return acc;
+    }
+    acc.push({
+      listing_id: listing.id,
+      snapshot_date: snapshotDate,
+      views_total: row.view_count ?? 0,
+      favorites_count: row.favorites_count ?? 0,
+      price: row.price ?? listing.price_current ?? null,
+      scraped_at: row.fetched_at ?? snapshotISO,
+      job_id: jobId
+    });
+    return acc;
+  }, []);
 
   for (const batch of chunk(payloads, 500)) {
     if (batch.length === 0) continue;
@@ -310,29 +329,28 @@ const insertPriceChanges = async (
   snapshotISO: string,
   jobId: string
 ) => {
-  const payloads = rows
-    .map((row) => {
-      const remoteId = row.tap_id;
-      if (!remoteId) return null;
-      const existing = existingMap.get(remoteId);
-      const listing = listingMap.get(remoteId);
-      if (!existing || !listing) {
-        return null;
-      }
-      const oldPrice = existing.price_current ?? null;
-      const newPrice = row.price ?? listing.price_current ?? null;
-      if ((oldPrice ?? null) === (newPrice ?? null)) {
-        return null;
-      }
-      return {
-        listing_id: listing.id,
-        old_price: oldPrice,
-        new_price: newPrice,
-        changed_at: snapshotISO,
-        job_id: jobId
-      };
-    })
-    .filter((item): item is Record<string, unknown> => Boolean(item));
+  const payloads: ListingPriceChangePayload[] = rows.reduce((acc: ListingPriceChangePayload[], row) => {
+    const remoteId = row.tap_id;
+    if (!remoteId) return acc;
+    const existing = existingMap.get(remoteId);
+    const listing = listingMap.get(remoteId);
+    if (!existing || !listing) {
+      return acc;
+    }
+    const oldPrice = existing.price_current ?? null;
+    const newPrice = row.price ?? listing.price_current ?? null;
+    if ((oldPrice ?? null) === (newPrice ?? null)) {
+      return acc;
+    }
+    acc.push({
+      listing_id: listing.id,
+      old_price: oldPrice,
+      new_price: newPrice,
+      changed_at: snapshotISO,
+      job_id: jobId
+    });
+    return acc;
+  }, []);
 
   for (const batch of chunk(payloads, 500)) {
     if (batch.length === 0) continue;
