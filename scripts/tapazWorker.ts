@@ -273,7 +273,6 @@ const calculateNextRunAt = (plan: ScrapePlanRecord) => {
   const now = DateTime.now().setZone(zone);
   let next = DateTime.fromObject(
     {
-      zone,
       hour: plan.run_hour,
       minute: plan.run_minute,
       second: 0,
