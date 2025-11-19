@@ -228,32 +228,31 @@ const upsertListings = async (
   snapshotISO: string,
   jobId: string
 ) => {
-  const payloads = rows
-    .map((row) => {
-      const remoteId = row.tap_id;
-      if (!remoteId) return null;
-      const existing = existingMap.get(remoteId);
-      return {
-        remote_id: remoteId,
-        title: row.title ?? existing?.remote_id ?? remoteId,
-        description: row.description ?? null,
-        category_slug: row.category_slug ?? null,
-        subcategory_slug: row.subcategory_slug ?? null,
-        seller_name: row.seller_name ?? null,
-        seller_type: row.seller_type ?? null,
-        location: row.location ?? null,
-        image_url: row.image_url ?? null,
-        price_current: row.price ?? existing?.price_current ?? null,
-        currency: row.currency ?? 'AZN',
-        status: existing?.status ?? 'active',
-        is_new: existing ? false : row.is_new ?? true,
-        first_seen_at: existing?.first_seen_at ?? snapshotISO,
-        last_seen_at: snapshotISO,
-        last_scraped_job_id: jobId,
-        metadata: row.raw ?? null
-      };
-    })
-    .filter((item): item is ListingUpsertPayload => Boolean(item));
+  const payloads: ListingUpsertPayload[] = rows.reduce((acc: ListingUpsertPayload[], row) => {
+    const remoteId = row.tap_id;
+    if (!remoteId) return acc;
+    const existing = existingMap.get(remoteId);
+    acc.push({
+      remote_id: remoteId,
+      title: row.title ?? existing?.remote_id ?? remoteId,
+      description: row.description ?? null,
+      category_slug: row.category_slug ?? null,
+      subcategory_slug: row.subcategory_slug ?? null,
+      seller_name: row.seller_name ?? null,
+      seller_type: row.seller_type ?? null,
+      location: row.location ?? null,
+      image_url: row.image_url ?? null,
+      price_current: row.price ?? existing?.price_current ?? null,
+      currency: row.currency ?? 'AZN',
+      status: existing?.status ?? 'active',
+      is_new: existing ? false : row.is_new ?? true,
+      first_seen_at: existing?.first_seen_at ?? snapshotISO,
+      last_seen_at: snapshotISO,
+      last_scraped_job_id: jobId,
+      metadata: row.raw ?? null
+    });
+    return acc;
+  }, []);
 
   for (const batch of chunk(payloads, 500)) {
     if (batch.length === 0) continue;
