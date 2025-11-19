@@ -1,6 +1,7 @@
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import { uploadSnapshotToSupabase } from '@/lib/admin/supabaseIngest';
+import { uploadSnapshotToSupabase, processCanonicalForJob } from '@/lib/admin/supabaseIngest';
+import { getSupabaseAdmin } from '@/lib/admin/supabaseClient';
 
 const SNAPSHOT_DIR = path.join(process.cwd(), 'data', 'snapshots');
 
@@ -43,9 +44,28 @@ const main = async () => {
 
   const jobId = jobIdArg ?? `gha-${Date.now()}`;
 
+  const supabase = getSupabaseAdmin();
+  if (!supabase) {
+    throw new Error('Supabase client yaradıla bilmədi. SUPABASE_URL və SUPABASE_SERVICE_ROLE_KEY tələb olunur.');
+  }
+
   console.log(`Snapshot Supabase-ə göndərilir: ${snapshotPath}`);
-  const result = await uploadSnapshotToSupabase(jobId, snapshotPath);
+  const result = await uploadSnapshotToSupabase(jobId, snapshotPath, { client: supabase });
   console.log(`Supabase cavabı:`, result);
+
+  let snapshotDate = new Date();
+  try {
+    const raw = await fs.readFile(snapshotPath, 'utf8');
+    const payload = JSON.parse(raw) as { scrapedAt?: string; scraped_at?: string };
+    const scrapedAt = payload.scrapedAt ?? payload.scraped_at;
+    if (scrapedAt) {
+      snapshotDate = new Date(scrapedAt);
+    }
+  } catch (error) {
+    console.warn('Snapshot tarix oxunmadı, cari vaxt istifadə olunur.', error);
+  }
+
+  await processCanonicalForJob(supabase, jobId, snapshotDate);
 };
 
 main().catch((error) => {

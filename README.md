@@ -18,6 +18,13 @@ npm run collect:playwright
 # Snapshot nəticəsini UI datasına yazmaq:
 npm run data:sync
 
+# Yeni worker (Supabase planlarını Hetzner-də işlətmək üçün)
+npx tsx scripts/tapazWorker.ts
+
+# Hetzner cron nümunəsi
+# hər dəqiqə planları yoxlayıb işlədən cron işi
+* * * * * cd /path/to/repo && npx tsx scripts/tapazWorker.ts >> /var/log/tapaz-worker.log 2>&1
+
 # Supabase mühit dəyişənləri üçün nümunə fayl
 cp .env.local.example .env.local && edit
 ```
