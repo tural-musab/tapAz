@@ -132,6 +132,26 @@ interface ListingInfoRow {
   price_current: number | null;
 }
 
+interface ListingUpsertPayload {
+  remote_id: string;
+  title: string | null;
+  description: string | null;
+  category_slug: string | null;
+  subcategory_slug: string | null;
+  seller_name: string | null;
+  seller_type: string | null;
+  location: string | null;
+  image_url: string | null;
+  price_current: number | null;
+  currency: string | null;
+  status: string | null;
+  is_new: boolean;
+  first_seen_at: string | null;
+  last_seen_at: string;
+  last_scraped_job_id: string;
+  metadata: Record<string, unknown> | null;
+}
+
 const fetchScrapedRows = async (client: SupabaseClient, jobId: string) => {
   const { data, error } = await client
     .from('scraped_listings')
@@ -233,7 +253,7 @@ const upsertListings = async (
         metadata: row.raw ?? null
       };
     })
-    .filter((item): item is Record<string, unknown> => Boolean(item));
+    .filter((item): item is ListingUpsertPayload => Boolean(item));
 
   for (const batch of chunk(payloads, 500)) {
     if (batch.length === 0) continue;
